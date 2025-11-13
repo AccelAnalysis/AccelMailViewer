@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Explorer - View Mode</title>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,'Open Sans','Helvetica Neue',sans-serif; line-height:1.6; color:#333; background:#f5f5f5;}
+    .container {display:flex; flex-direction:column; height:100vh;}
+    header {background:#1e40af; color:white; padding:1rem; text-align:center;}
+    .main-content {display:flex; flex:1; overflow:hidden;}
+    #map {flex:1; height:100%;}
+    .status-bar {background:#eef2ff; border-top:1px solid #c7d2fe; padding:.5rem 1rem; font-size:.75rem; color:#4b5563;}
+    .btn {display:inline-block; padding:.5rem 1rem; background:#3b82f6; color:white; border:none; border-radius:.375rem; cursor:pointer; font-size:.875rem;}
+    .btn:hover {background:#2563eb;}
+    .btn-logout {background:#ef4444; margin-left:1rem;}
+    .btn-logout:hover {background:#dc2626;}
+    #controls {display:flex; flex-wrap:wrap; gap:8px 16px; padding:10px 16px; background:#fff; box-shadow:0 1px 3px rgba(15,23,42,.12); z-index:500;}
+    .control-group {display:flex; flex-direction:column; min-width:150px; max-width:210px; font-size:12px;}
+    .control-group label {margin-bottom:2px; font-weight:600; color:#374151;}
+    .control-group select,.control-group input {padding:4px 6px; font-size:12px; border-radius:4px; border:1px solid #d1d5db; background:#f9fafb;}
+    .popup-exclude-btn {background:#dc2626; color:white; border:none; padding:4px 8px; font-size:11px; border-radius:3px; cursor:pointer; margin-top:6px; width:100%;}
+    .popup-exclude-btn:hover {background:#b91c1c;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Business Explorer</h1>
+      <div>
+        <span id="status">Loading data...</span>
+        <button id="logoutBtn" class="btn btn-logout">Logout</button>
+      </div>
+    </header>
+
+    <section id="controls">
+      <div class="control-group"><label for="lobFilter">Line of Business</label><select id="lobFilter"><option value="all">All</option></select></div>
+      <div class="control-group"><label for="yearFilter">Year of Founding</label><select id="yearFilter"><option value="all">All</option></select></div>
+      <div class="control-group"><label for="cityFilter">Physical City</label><select id="cityFilter"><option value="all">All</option></select></div>
+      <div class="control-group"><label for="naicsFilter">Primary NAICS Description</label><select id="naicsFilter"><option value="all">All</option></select></div>
+      <div class="control-group"><label for="radiusFilter">Radius Ring Filter</label><select id="radiusFilter"><option value="all">All Rings</option></select></div>
+    </section>
+
+    <div class="main-content"><div id="map"></div></div>
+
+    <div class="status-bar">
+      <span id="recordCount">0</span> records found | Center: <span id="centerLocation">Click on a marker to set center</span>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <script>
+    // ==== CONFIGURATION ====
+    const CSV_URL = "homebased_businesses_upto5yrs.csv";
+    const COL_LAT = "Latitude", COL_LNG = "Longtitude", COL_LOB = "Line_of_Business",
+          COL_YEAR = "Year_of_Founding", COL_CITY = "Physical_City",
+          COL_NAICS_DESC = "Primary_NAICS_Description", COL_NAME = "Physical_Address",
+          COL_ID = "Record ID";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycby7fUQcHZG0mtQP4Kv37qQwbCFf4vYmOFO5Xc3wp-7ecMotd7-P2RdYvDQkdRj_5o7Q/exec"; // <-- REPLACE
+
+    // ==== STATE ====
+    let map, markersLayer = L.layerGroup(), ringsLayer = L.layerGroup(),
+        allRecords = [], activeCenter = null,
+        ringConfig = {count:3, stepMiles:1},
+        savedAddresses = [], excludedIds = new Set(), showDataset = true;
+
+    // ==== DOM ====
+    const statusEl = document.getElementById('status');
+    const recordCountEl = document.getElementById('recordCount');
+    const centerLocationEl = document.getElementById('centerLocation');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // ==== INIT ====
+    document.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('isAuthenticated') !== 'true') { window.location.href='login.html'; return; }
+      initMap(); bindEvents(); loadConfigFromGAS(); loadCsvData();
+    });
+
+    function initMap() {
+      map = L.map('map').setView([34.0522, -118.2437], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      markersLayer.addTo(map); ringsLayer.addTo(map);
+    }
+
+    function bindEvents() {
+      logoutBtn.addEventListener('click', () => { sessionStorage.removeItem('isAuthenticated'); window.location.href='login.html'; });
+      ['lobFilter','yearFilter','cityFilter','naicsFilter','radiusFilter'].forEach(id => {
+        document.getElementById(id).addEventListener('change', recomputeAndRedraw);
+      });
+    }
+
+    // ==== GAS COMMUNICATION ====
+    function loadConfigFromGAS() {
+      statusEl.textContent = 'Loading config...';
+      fetch(`${GAS_URL}?action=getConfig`)
+        .then(r => r.json())
+        .then(data => {
+          savedAddresses = data.savedAddresses || [];
+          excludedIds = new Set(data.excludedIds || []);
+          showDataset = data.showDataset !== false;
+          ringConfig = data.ringConfig || {count:3, stepMiles:1};
+          updateRadiusFilterOptions();
+        })
+        .catch(() => statusEl.textContent = 'Config load failed');
+    }
+
+    function saveConfigToGAS() {
+      const payload = {action:'saveConfig', config:{savedAddresses, excludedIds:Array.from(excludedIds), showDataset, ringConfig}};
+      fetch(GAS_URL, {method:'POST', body:JSON.stringify(payload), headers:{'Content-Type':'application/json'}});
+    }
+
+    // ==== CSV & FILTERS ====
+    function loadCsvData() {
+      statusEl.textContent = 'Loading data...';
+      Papa.parse(CSV_URL, {
+        header:true, download:true, dynamicTyping:true, skipEmptyLines:true,
+        complete: results => {
+          allRecords = results.data
+            .map(r => {
+              const lat = parseFloat(r[COL_LAT]), lng = parseFloat(r[COL_LNG]);
+              if (!isFinite(lat) || !isFinite(lng)) return null;
+              return {
+                id: r[COL_ID], lat, lng,
+                lineOfBusiness: r[COL_LOB]||"", yearFounded: r[COL_YEAR]||"",
+                city: r[COL_CITY]||"", naicsDesc: r[COL_NAICS_DESC]||"",
+                label: r[COL_NAME]||r[COL_CITY]||"Location"
+              };
+            })
+            .filter(Boolean);
+          populateFilterOptions();
+          drawMarkersAndRings();
+          statusEl.textContent = 'Ready';
+        }
+      });
+    }
+
+    function populateFilterOptions() {
+      const add = (id, vals) => {
+        const sel = document.getElementById(id);
+        const first = sel.options[0]; sel.innerHTML=''; sel.appendChild(first);
+        vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o);});
+      };
+      add('lobFilter', [...new Set(allRecords.map(r=>r.lineOfBusiness).filter(Boolean))].sort());
+      add('yearFilter', [...new Set(allRecords.map(r=>r.yearFounded).filter(Boolean))].sort());
+      add('cityFilter', [...new Set(allRecords.map(r=>r.city).filter(Boolean))].sort());
+      add('naicsFilter', [...new Set(allRecords.map(r=>r.naicsDesc).filter(Boolean))].sort());
+    }
+
+    function updateRadiusFilterOptions() {
+      const sel = document.getElementById('radiusFilter');
+      sel.innerHTML = '<option value="all">All Rings</option>';
+      for(let i=1;i<=ringConfig.count;i++){
+        const o=document.createElement('option'); o.value=i; o.textContent=`Within ${i*ringConfig.stepMiles} miles`; sel.appendChild(o);
+      }
+    }
+
+    // ==== RINGS & FILTERING ====
+    function computeRingAssignments() {
+      if (!activeCenter) return;
+      const c = L.latLng(activeCenter.lat, activeCenter.lng);
+      const mPerMile = 1609.34;
+      allRecords.forEach(r=>{
+        if (excludedIds.has(r.id)) {r.ringIndex=0; return;}
+        const d = map.distance(c, L.latLng(r.lat,r.lng))/mPerMile;
+        r.ringIndex = 0;
+        for(let i=1;i<=ringConfig.count;i++) if(d<=i*ringConfig.stepMiles){r.ringIndex=i;break;}
+      });
+    }
+
+    function getFilteredRecords(includeRing=true) {
+      const f = {
+        lob: document.getElementById('lobFilter').value,
+        year: document.getElementById('yearFilter').value,
+        city: document.getElementById('cityFilter').value,
+        naics: document.getElementById('naicsFilter').value,
+        radius: includeRing ? document.getElementById('radiusFilter').value : 'all'
+      };
+      return allRecords.filter(r=>{
+        if (excludedIds.has(r.id)) return false;
+        if (f.lob!=='all' && r.lineOfBusiness!==f.lob) return false;
+        if (f.year!=='all' && String(r.yearFounded)!==f.year) return false;
+        if (f.city!=='all' && r.city!==f.city) return false;
+        if (f.naics!=='all' && r.naicsDesc!==f.naics) return false;
+        if (includeRing && f.radius!=='all' && r.ringIndex!==parseInt(f.radius)) return false;
+        return true;
+      });
+    }
+
+    // ==== DRAWING ====
+    function drawMarkersAndRings() {
+      markersLayer.clearLayers(); ringsLayer.clearLayers();
+      const visible = showDataset ? getFilteredRecords(false) : [];
+
+      visible.forEach(rec=>{
+        const isCenter = activeCenter && rec.lat===activeCenter.lat && rec.lng===activeCenter.lng;
+        const m = L.circleMarker([rec.lat,rec.lng], {
+          radius:isCenter?6:4, weight:1,
+          color:isCenter?"#b91c1c":"#2563eb",
+          fillColor:isCenter?"#fecaca":"#60a5fa", fillOpacity:0.9
+        });
+
+        const popup = `
+          <div style="font-size:12px;">
+            <strong>${escape(rec.label)}</strong><br/>
+            <em>${escape(rec.city)}</em><br/>
+            ${escape(rec.lineOfBusiness)}<br/>
+            Year: ${escape(rec.yearFounded||"N/A")}<br/>
+            NAICS: ${escape(rec.naicsDesc)}
+            <button class="popup-exclude-btn" onclick="excludePoint('${rec.id}')">Exclude Point</button>
+          </div>`;
+        m.bindPopup(popup);
+        m.on('click',()=>{ activeCenter={lat:rec.lat,lng:rec.lng,name:rec.label}; centerLocationEl.textContent=rec.label; recomputeAndRedraw(true); });
+        markersLayer.addLayer(m);
+      });
+
+      savedAddresses.forEach(a=>{
+        const m = L.circleMarker([a.lat,a.lng], {radius:6, weight:1, color:"#b91c1c", fillColor:"#fecaca", fillOpacity:0.9});
+        m.bindPopup(`<strong>${escape(a.name)}</strong>`);
+        m.on('click',()=>{ activeCenter={lat:a.lat,lng:a.lng,name:a.name}; centerLocationEl.textContent=a.name; recomputeAndRedraw(true); });
+        markersLayer.addLayer(m);
+      });
+
+      if (activeCenter) {
+        const c = L.latLng(activeCenter.lat, activeCenter.lng);
+        const counts = new Array(ringConfig.count+1).fill(0);
+        getFilteredRecords(false).forEach(r=>{ if(r.ringIndex>=1) counts[r.ringIndex]++; });
+        for(let i=1;i<=ringConfig.count;i++){
+          L.circle(c, {radius:i*ringConfig.stepMiles*1609.34, color:i===1?'#1e40af':'#3b82f6', weight:i===1?2:1, opacity:0.7, fillOpacity:0.1, fillColor:'#3b82f6'})
+            .bindTooltip(`<div style="text-align:center"><strong>${i*ringConfig.stepMiles} mile${i>1?'s':''}</strong><br>${counts[i]} business${counts[i]!==1?'es':''}</div>`,{permanent:false,direction:'top'})
+            .addTo(ringsLayer);
+        }
+      }
+
+      recordCountEl.textContent = getFilteredRecords().length;
+      if (activeCenter && map.getZoom()<12) map.setView([activeCenter.lat, activeCenter.lng],12);
+    }
+
+    function recomputeAndRedraw(fit=false) {
+      computeRingAssignments();
+      drawMarkersAndRings();
+      if (fit && activeCenter) map.setView([activeCenter.lat, activeCenter.lng], Math.max(map.getZoom(),12));
+    }
+
+    // ==== EXCLUDE HANDLER (called from popup) ====
+    window.excludePoint = function(id) {
+      excludedIds.add(id);
+      saveConfigToGAS();
+      recomputeAndRedraw();
+    };
+
+    function escape(s){return s?String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])):'';}
+  </script>
+</body>
+</html>
