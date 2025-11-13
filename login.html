@@ -1,225 +1,461 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Accel Analysis - Business Solutions</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Homebased Business Radius Explorer</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; display: flex; flex-direction: column; }
     
-    body {
-      font-family: 'Roboto', sans-serif;
-      background-color: #f5f7fa;
-      color: #333;
-      line-height: 1.6;
-    }
-    
-    .login-container {
+    header {
+      padding: 12px 16px;
+      background: linear-gradient(90deg, #2f5597, #4b72c1);
+      color: #fff;
       display: flex;
-      min-height: 100vh;
-    }
-    
-    .login-hero {
-      flex: 1;
-      background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
-                  url('https://img1.wsimg.com/isteam/ip/0815fdc9-aafc-4fe1-99f8-dedc9ba0e23b/blob-02576cc.png/:/rs=w:1440,h:1440');
-      background-size: cover;
-      background-position: center;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
+      justify-content: space-between;
       align-items: center;
-      padding: 2rem;
-      color: white;
-      text-align: center;
     }
-    
-    .login-form-container {
-      width: 100%;
-      max-width: 500px;
-      background: white;
-      padding: 2rem;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
+    header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+    header p { margin: 4px 0 0; font-size: 13px; opacity: .9; }
+
+    .header-controls {
+      display: flex; gap: .75rem;
     }
-    
-    .logo {
-      max-width: 150px;
-      margin-bottom: 2rem;
+    .logout-btn, .admin-toggle {
+      padding: .5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; color: white;
     }
-    
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
-      color: #2c3e50;
+    .logout-btn { background: #e74c3c; }
+    .logout-btn:hover { background: #c0392b; }
+    .admin-toggle { background: #3b82f6; }
+    .admin-toggle:hover { background: #2563eb; }
+
+    main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+    #controls {
+      display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 16px;
+      background: #fff; box-shadow: 0 1px 3px rgba(15,23,42,.12); z-index: 500;
     }
-    
-    .subtitle {
-      color: #7f8c8d;
-      margin-bottom: 2rem;
+    .control-group {
+      display: flex; flex-direction: column; min-width: 150px; max-width: 210px; font-size: 12px;
     }
-    
-    .form-group {
-      margin-bottom: 1.5rem;
+    .control-group label { margin-bottom: 2px; font-weight: 600; color: #374151; }
+    .control-group select, .control-group input {
+      padding: 4px 6px; font-size: 12px; border-radius: 4px; border: 1px solid #d1d5db; background: #f9fafb;
     }
-    
-    label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 500;
-      color: #2c3e50;
+
+    #map { flex: 1; min-height: 0; height: 100%; }
+
+    #status-bar {
+      padding: 6px 16px; font-size: 11px; background: #eef2ff; border-top: 1px solid #c7d2fe;
+      color: #1f2937; display: flex; justify-content: space-between; gap: 8px;
     }
-    
-    input {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 1rem;
-      transition: border-color 0.3s;
+
+    .admin-panel {
+      position: fixed; top: 0; right: -400px; width: 380px; height: 100vh; background: white;
+      box-shadow: -2px 0 10px rgba(0,0,0,.1); padding: 1.5rem; overflow-y: auto; z-index: 2000;
+      transition: right .3s;
     }
-    
-    input:focus {
-      outline: none;
-      border-color: #3498db;
-      box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    .admin-panel.visible { right: 0; }
+    .admin-section { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb; }
+    .form-group { margin-bottom: 1rem; }
+    .form-input { width: 100%; padding: .5rem; border: 1px solid #d1d5db; border-radius: 4px; }
+    .btn { background: #3b82f6; color: white; border: none; padding: .5rem 1rem; border-radius: 4px; cursor: pointer; }
+    .btn:hover { background: #2563eb; }
+    .btn-secondary { background: #6b7280; } .btn-secondary:hover { background: #4b5563; }
+
+    .popup-exclude-btn {
+      background: #dc2626; color: white; border: none; padding: 4px 8px; font-size: 11px;
+      border-radius: 3px; cursor: pointer; margin-top: 6px; width: 100%;
     }
-    
-    button {
-      background-color: #2c3e50;
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      font-size: 1rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: background-color 0.3s;
-      width: 100%;
-    }
-    
-    button:hover {
-      background-color: #1a252f;
-    }
-    
-    .error-message {
-      color: #e74c3c;
-      margin-top: 0.5rem;
-      font-size: 0.9rem;
-      display: none;
-    }
-    
-    .hero-content {
-      max-width: 600px;
-    }
-    
-    .hero-content h2 {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-    }
-    
-    .hero-content p {
-      font-size: 1.1rem;
-      opacity: 0.9;
-      margin-bottom: 2rem;
-    }
-    
+    .popup-exclude-btn:hover { background: #b91c1c; }
+
     @media (max-width: 768px) {
-      .login-container {
-        flex-direction: column;
-      }
-      
-      .login-hero {
-        padding: 4rem 2rem;
-      }
-      
-      .login-form-container {
-        padding: 2rem;
-      }
+      .control-group { min-width: 45%; }
+      header h1 { font-size: 16px; }
+      header p { font-size: 12px; }
     }
   </style>
 </head>
 <body>
-  <div class="login-container">
-    <div class="login-hero">
-      <div class="hero-content">
-        <h2>Business Intelligence Platform</h2>
-        <p>Gain valuable insights into home-based business distributions and market opportunities with our advanced analytics platform.</p>
+
+  <header>
+    <div>
+      <h1>Homebased Business Radius Explorer</h1>
+      <p>Click a marker to set center, adjust rings, hover rings for counts.</p>
+    </div>
+    <div class="header-controls">
+      <button id="adminToggle" class="admin-toggle">Admin Panel</button>
+      <button id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="controls">
+      <div class="control-group"><label for="ringCount">Number of Rings (1–5)</label><input type="number" id="ringCount" min="1" max="5" value="3" /></div>
+      <div class="control-group"><label for="ringStep">Ring Step (miles)</label><input type="number" id="ringStep" min="0.1" step="0.1" value="1" /></div>
+      <div class="control-group"><label for="radiusFilter">Radius Filter</label><select id="radiusFilter"><option value="all">All Rings</option></select></div>
+      <div class="control-group"><label for="lobFilter">Line of Business</label><select id="lobFilter"><option value="all">All</option></select></div>
+      <div class="control-group"><label for="yearFilter">Year Founded</label><select id="yearFilter"><option value="all">All</option></select></div>
+      <div class="control-group"><label for="cityFilter">City</label><select id="cityFilter"><option value="all">All</option></select></div>
+      <div class="control-group"><label for="naicsFilter">NAICS</label><select id="naicsFilter"><option value="all">All</option></select></div>
+    </section>
+
+    <div id="map"></div>
+
+    <div id="adminPanel" class="admin-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 style="margin:0;">Admin Controls</h3>
+        <button id="closeAdminPanel" class="btn btn-secondary">Close</button>
+      </div>
+
+      <div class="admin-section">
+        <h4>Dataset Visibility</h4>
+        <button id="toggleAddressesBtn" class="btn">Hide All Addresses</button>
+      </div>
+
+      <div class="admin-section">
+        <h4>Ring Settings</h4>
+        <button id="saveRingConfigBtn" class="btn">Save Ring Config</button>
+      </div>
+
+      <div class="admin-section">
+        <h4>Manage Target Addresses</h4>
+        <div class="form-group">
+          <input type="text" id="newAddressName" placeholder="Name" class="form-input">
+          <input type="text" id="newAddressLat" placeholder="Latitude" class="form-input">
+          <input type="text" id="newAddressLng" placeholder="Longitude" class="form-input">
+          <button id="addAddressBtn" class="btn">Add</button>
+        </div>
+        <div id="savedAddressesList"></div>
+      </div>
+
+      <div class="admin-section">
+        <h4>Login Screen Text</h4>
+        <div class="form-group"><label for="loginHeroTitle">Hero Title</label><input type="text" id="loginHeroTitle" class="form-input"></div>
+        <div class="form-group"><label for="loginHeroSubtitle">Hero Subtitle</label><input type="text" id="loginHeroSubtitle" class="form-input"></div>
+        <div class="form-group"><label for="loginFormTitle">Form Title</label><input type="text" id="loginFormTitle" class="form-input"></div>
+        <div class="form-group"><label for="loginFormSubtitle">Form Subtitle</label><input type="text" id="loginFormSubtitle" class="form-input"></div>
+        <button id="saveLoginTextBtn" class="btn">Save</button>
       </div>
     </div>
-    
-    <div class="login-form-container">
-      <div class="logo">
-        <img src="https://img1.wsimg.com/isteam/ip/0815fdc9-aafc-4fe1-99f8-dedc9ba0e23b/Accel%20Analysis%20(1).png/:/rs=w:600,h:600,cg:true,m/cr=w:600,h:600" alt="Accel Analysis Logo" class="logo-img">
-        <h1>Welcome Back</h1>
-        <p>Sign in to access the Business Explorer</p>
-      </div>
-      
-      <form id="loginForm" class="login-form">
-        <div class="form-group">
-          <label for="username">Username</label>
-          <input type="text" id="username" name="username" required>
-        </div>
-        
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password" required>
-        </div>
-        
-        <div class="form-group">
-          <label for="role">Login As</label>
-          <select id="role" name="role" class="form-control" required>
-            <option value="">Select role...</option>
-            <option value="admin">Administrator</option>
-            <option value="user">User</option>
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <button type="submit" class="btn btn-primary">Sign In</button>
-        </div>
-        
-        <div class="form-footer">
-          <p>Need access? <a href="#" class="text-link">Contact administrator</a></p>
-        </div>
-      </form>
-    </div>
+  </main>
+
+  <div id="status-bar">
+    <span id="recordsStatus">Records shown: 0</span>
+    <span id="centerStatus">Center: Click a marker</span>
   </div>
 
-  <script>
-    document.getElementById('loginForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-      const role = document.getElementById('role').value;
-      const savedAdminPassword = localStorage.getItem('adminPassword') || 'admin123'; // Default admin password
-      const savedUserPassword = localStorage.getItem('userPassword') || 'user123'; // Default user password
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-      if (role === 'admin' && password === savedAdminPassword) {
-        // Store session and redirect to admin dashboard
-        sessionStorage.setItem('isAuthenticated', 'true');
-        sessionStorage.setItem('role', 'admin');
-        window.location.href = 'index.html';
-      } else if (role === 'user' && password === savedUserPassword) {
-        // Store session and redirect to user view
-        sessionStorage.setItem('isAuthenticated', 'true');
-        sessionStorage.setItem('role', 'user');
-        window.location.href = 'view.html';
-      } else {
-        // Show error
-        document.getElementById('errorMessage').style.display = 'block';
+  <script>
+    // === CONFIG ===
+    const CSV_URL = "homebased_businesses_upto5yrs.csv";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbziA154kkejooSz4Imv94x7l5HLnodwQaAiX7m4trDDbHY0qUnqexq7ofzfIYq0BGpTqA/exec";
+
+    let map, markersLayer = L.layerGroup(), ringsLayer = L.layerGroup();
+    let allRecords = [], activeCenter = null;
+    let ringConfig = {count: 3, stepMiles: 1};
+    let savedAddresses = [], excludedIds = new Set(), showDataset = true;
+
+    // === DOM READY ===
+    document.addEventListener("DOMContentLoaded", () => {
+      if (sessionStorage.getItem('isAuthenticated') !== 'true') {
+        window.location.href = 'login.html';
+        return;
       }
+
+      initMap();
+      bindEvents();
+      loadConfigFromGAS();
+      loadCsvData();
     });
 
-    // Check if already logged in
-    if (sessionStorage.getItem('isAuthenticated') === 'true') {
-      window.location.href = 'index.html';
+    // === MAP INIT ===
+    function initMap() {
+      map = L.map('map').setView([36.85, -76.35], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      markersLayer.addTo(map);
+      ringsLayer.addTo(map);
+    }
+
+    // === EVENT BINDING ===
+    function bindEvents() {
+      document.getElementById('adminToggle').addEventListener('click', () => {
+        document.getElementById('adminPanel').classList.toggle('visible');
+      });
+      document.getElementById('closeAdminPanel').addEventListener('click', () => {
+        document.getElementById('adminPanel').classList.remove('visible');
+      });
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        sessionStorage.removeItem('isAuthenticated');
+        sessionStorage.removeItem('role');
+        window.location.href = 'login.html';
+      });
+      document.getElementById('saveRingConfigBtn').addEventListener('click', saveRingConfig);
+      document.getElementById('toggleAddressesBtn').addEventListener('click', toggleDataset);
+      document.getElementById('addAddressBtn').addEventListener('click', addAddress);
+      document.getElementById('saveLoginTextBtn').addEventListener('click', saveLoginText);
+
+      // Filters
+      ['lobFilter','yearFilter','cityFilter','naicsFilter','radiusFilter'].forEach(id => {
+        document.getElementById(id).addEventListener('change', recomputeAndRedraw);
+      });
+    }
+
+    // === GAS COMMUNICATION ===
+    function loadConfigFromGAS() {
+      fetch(`${GAS_URL}?action=getConfig`, { mode: 'cors' })
+        .then(r => r.json())
+        .then(data => {
+          savedAddresses = data.savedAddresses || [];
+          excludedIds = new Set(data.excludedIds || []);
+          showDataset = data.showDataset !== false;
+          ringConfig = data.ringConfig || {count:3, stepMiles:1};
+          document.getElementById('ringCount').value = ringConfig.count;
+          document.getElementById('ringStep').value = ringConfig.stepMiles;
+          updateRadiusFilterOptions();
+          populateSavedAddresses();
+        })
+        .catch(console.error);
+    }
+
+    function saveConfigToGAS() {
+      const payload = {
+        action: 'saveConfig',
+        config: { savedAddresses, excludedIds: Array.from(excludedIds), showDataset, ringConfig }
+      };
+      fetch(GAS_URL, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    }
+
+    // === ADMIN FUNCTIONS ===
+    function saveRingConfig() {
+      ringConfig.count = +document.getElementById('ringCount').value;
+      ringConfig.stepMiles = +document.getElementById('ringStep').value;
+      updateRadiusFilterOptions();
+      saveConfigToGAS();
+    }
+
+    function toggleDataset() {
+      showDataset = !showDataset;
+      document.getElementById('toggleAddressesBtn').textContent = showDataset ? 'Hide All Addresses' : 'Show All Addresses';
+      saveConfigToGAS();
+      recomputeAndRedraw();
+    }
+
+    function addAddress() {
+      const name = document.getElementById('newAddressName').value.trim();
+      const lat = parseFloat(document.getElementById('newAddressLat').value);
+      const lng = parseFloat(document.getElementById('newAddressLng').value);
+      if (name && isFinite(lat) && isFinite(lng)) {
+        savedAddresses.push({ name, lat, lng });
+        saveConfigToGAS();
+        populateSavedAddresses();
+        document.getElementById('newAddressName').value = '';
+        document.getElementById('newAddressLat').value = '';
+        document.getElementById('newAddressLng').value = '';
+      }
+    }
+
+    function populateSavedAddresses() {
+      const list = document.getElementById('savedAddressesList');
+      list.innerHTML = '<h5>Saved Addresses</h5><ul>' + savedAddresses.map((a, i) => `
+        <li style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
+          <span>${a.name} (${a.lat}, ${a.lng})</span>
+          <button onclick="removeAddress(${i})" style="color:red; font-size:10px;">Remove</button>
+        </li>
+      `).join('') + '</ul>';
+    }
+
+    window.removeAddress = function(i) {
+      savedAddresses.splice(i, 1);
+      saveConfigToGAS();
+      populateSavedAddresses();
+    };
+
+    function saveLoginText() {
+      const text = {
+        heroTitle: document.getElementById('loginHeroTitle').value,
+        heroSubtitle: document.getElementById('loginHeroSubtitle').value,
+        formTitle: document.getElementById('loginFormTitle').value,
+        formSubtitle: document.getElementById('loginFormSubtitle').value
+      };
+      fetch(GAS_URL, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'saveLoginText', text })
+      }).then(() => alert('Login text saved!'));
+    }
+
+    // === CSV & MAP LOGIC ===
+    function loadCsvData() {
+      Papa.parse(CSV_URL, {
+        header: true, download: true, dynamicTyping: true, skipEmptyLines: true,
+        complete: results => {
+          allRecords = results.data
+            .map(r => ({
+              id: r.Record_ID,
+              lat: parseFloat(r.Latitude),
+              lng: parseFloat(r.Longtitude),
+              lineOfBusiness: r.Line_of_Business || '',
+              yearFounded: r.Year_of_Founding || '',
+              city: r.Physical_City || '',
+              naicsDesc: r.Primary_NAICS_Description ||子上'',
+              label: r.Physical_Address || r.Physical_City || 'Location'
+            }))
+            .filter(r => isFinite(r.lat) && isFinite(r.lng));
+          populateFilters();
+          drawMarkersAndRings();
+        }
+      });
+    }
+
+    function populateFilters() {
+      const add = (id, vals) => {
+        const sel = document.getElementById(id);
+        sel.innerHTML = '<option value="all">All</option>';
+        vals.forEach(v => {
+          const o = document.createElement('option');
+          o.value = v; o.textContent = v; sel.appendChild(o);
+        });
+      };
+      add('lobFilter', [...new Set(allRecords.map(r => r.lineOfBusiness).filter(Boolean))].sort());
+      add('yearFilter', [...new Set(allRecords.map(r => r.yearFounded).filter(Boolean))].sort());
+      add('cityFilter', [...new Set(allRecords.map(r => r.city).filter(Boolean))].sort());
+      add('naicsFilter', [...new Set(allRecords.map(r => r.naicsDesc).filter(Boolean))].sort());
+    }
+
+    function updateRadiusFilterOptions() {
+      const sel = document.getElementById('radiusFilter');
+      sel.innerHTML = '<option value="all">All Rings</option>';
+      for (let i = 1; i <= ringConfig.count; i++) {
+        const o = document.createElement('option');
+        o.value = i;
+        o.textContent = `Within ${i * ringConfig.stepMiles} miles`;
+        sel.appendChild(o);
+      }
+    }
+
+    function computeRingAssignments() {
+      if (!activeCenter) return;
+      const c = L.latLng(activeCenter.lat, activeCenter.lng);
+      allRecords.forEach(r => {
+        if (excludedIds.has(r.id)) { r.ringIndex = 0; return; }
+        const d = map.distance(c, L.latLng(r.lat, r.lng)) / 1609.34;
+        r.ringIndex = 0;
+        for (let i = 1; i <= ringConfig.count; i++) {
+          if (d <= i * ringConfig.stepMiles) { r.ringIndex = i; break; }
+        }
+      });
+    }
+
+    function getFilteredRecords(ringFilter = true) {
+      const f = {
+        lob: document.getElementById('lobFilter').value,
+        year: document.getElementById('yearFilter').value,
+        city: document.getElementById('cityFilter').value,
+        naics: document.getElementById('naicsFilter').value,
+        radius: ringFilter ? document.getElementById('radiusFilter').value : 'all'
+      };
+      return allRecords.filter(r => {
+        if (excludedIds.has(r.id)) return false;
+        if (f.lob !== 'all' && r.lineOfBusiness !== f.lob) return false;
+        if (f.year !== 'all' && String(r.yearFounded) !== f.year) return false;
+        if (f.city !== 'all' && r.city !== f.city) return false;
+        if (f.naics !== 'all' && r.naicsDesc !== f.naics) return false;
+        if (ringFilter && f.radius !== 'all' && r.ringIndex !== parseInt(f.radius)) return false;
+        return true;
+      });
+    }
+
+    function drawMarkersAndRings() {
+      markersLayer.clearLayers(); ringsLayer.clearLayers();
+      const display = showDataset ? getFilteredRecords(false) : [];
+
+      display.forEach(rec => {
+        const isCenter = activeCenter && rec.lat === activeCenter.lat && rec.lng === activeCenter.lng;
+        const m = L.circleMarker([rec.lat, rec.lng], {
+          radius: isCenter ? 6 : 4, weight: 1,
+          color: isCenter ? "#b91c1c" : "#2563eb",
+          fillColor: isCenter ? "#fecaca" : "#60a5fa", fillOpacity: 0.9
+        });
+        const popup = `
+          <div style="font-size:12px;">
+            <strong>${escape(rec.label)}</strong><br/>
+            <em>${escape(rec.city)}</em><br/>
+            ${escape(rec.lineOfBusiness)}<br/>
+            Year: ${escape(rec.yearFounded || "N/A")}<br/>
+            NAICS: ${escape(rec.naicsDesc)}
+            <button class="popup-exclude-btn" onclick="excludePoint('${rec.id}')">Exclude Point</button>
+          </div>`;
+        m.bindPopup(popup);
+        m.on('click', () => {
+          activeCenter = { lat: rec.lat, lng: rec.lng, name: rec.label };
+          document.getElementById('centerStatus').textContent = `Center: ${rec.label}`;
+          recomputeAndRedraw(true);
+        });
+        markersLayer.addLayer(m);
+      });
+
+      savedAddresses.forEach(a => {
+        const m = L.circleMarker([a.lat, a.lng], { radius: 6, weight: 1, color: "#b91c1c", fillColor: "#fecaca", fillOpacity: 0.9 });
+        m.bindPopup(`<strong>${escape(a.name)}</strong>`);
+        m.on('click', () => {
+          activeCenter = { lat: a.lat, lng: a.lng, name: a.name };
+          document.getElementById('centerStatus').textContent = `Center: ${a.name}`;
+          recomputeAndRedraw(true);
+        });
+        markersLayer.addLayer(m);
+      });
+
+      if (activeCenter) {
+        const c = L.latLng(activeCenter.lat, activeCenter.lng);
+        const counts = new Array(ringConfig.count + 1).fill(0);
+        getFilteredRecords(false).forEach(r => { if (r.ringIndex >= 1) counts[r.ringIndex]++; });
+        for (let i = 1; i <= ringConfig.count; i++) {
+          L.circle(c, {
+            radius: i * ringConfig.stepMiles * 1609.34,
+            color: i === 1 ? '#1e40af' : '#3b82f6',
+            weight: i === 1 ? 2 : 1,
+            opacity: 0.7, fillOpacity: 0.1, fillColor: '#3b82f6'
+          }).bindTooltip(
+            `<div style="text-align:center"><strong>${i * ringConfig.stepMiles} mile${i > 1 ? 's' : ''}</strong><br>${counts[i]} business${counts[i] !== 1 ? 'es' : ''}</div>`,
+            { permanent: false, direction: 'top' }
+          ).addTo(ringsLayer);
+        }
+      }
+
+      document.getElementById('recordsStatus').textContent = `Records shown: ${getFilteredRecords().length}`;
+    }
+
+    function recomputeAndRedraw(fit = false) {
+      computeRingAssignments();
+      drawMarkersAndRings();
+      if (fit && activeCenter) map.setView([activeCenter.lat, activeCenter.lng], Math.max(map.getZoom(), 12));
+    }
+
+    window.excludePoint = function(id) {
+      excludedIds.add(id);
+      saveConfigToGAS();
+      recomputeAndRedraw();
+    };
+
+    function escape(s) {
+      return s ? String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])) : '';
     }
   </script>
 </body>
