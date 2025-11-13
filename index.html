@@ -1,93 +1,316 @@
 <!DOCTYPE html>
+<!-- Authentication check -->
+<script>
+  if (sessionStorage.getItem('isAuthenticated') !== 'true') {
+    window.location.href = 'login.html';
+  }
+</script>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Homebased Business Radius Explorer</title>
 
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; display: flex; flex-direction: column; }
+    * {
+      box-sizing: border-box;
+    }
     
-    header {
-      padding: 12px 16px;
-      background: linear-gradient(90deg, #2f5597, #4b72c1);
-      color: #fff;
+    .header-controls {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      background: white;
+      padding: 0.5rem;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .logout-btn {
+      padding: 0.5rem 1rem;
+      background: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.3s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    
+    .logout-btn:hover {
+      background: #c0392b;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: relative;
+    }
+    
+    .admin-toggle {
+      padding: 0.5rem 1rem;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    
+    .admin-toggle:hover {
+      background: #2563eb;
+    }
+    
+    .admin-panel {
+      position: fixed;
+      top: 0;
+      right: -400px;
+      width: 380px;
+      height: 100vh;
+      background: white;
+      box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      overflow-y: auto;
+      z-index: 2000;
+      transition: right 0.3s ease;
+    }
+    
+    .admin-panel.visible {
+      right: 0;
+    }
+    
+    .admin-section {
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .admin-section h4 {
+      margin-top: 0;
+      color: #1f2937;
+    }
+    
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+    }
+    
+    .btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .btn:hover {
+      background: #2563eb;
+    }
+    
+    .btn-secondary {
+      background: #6b7280;
+    }
+    
+    .btn-secondary:hover {
+      background: #4b5563;
+    }
+    
+    .address-list {
+      margin-top: 1rem;
+    }
+    
+    .address-list ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .address-list li {
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      margin-bottom: 0.5rem;
+      border-radius: 4px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    header h1 { margin: 0; font-size: 20px; font-weight: 600; }
-    header p { margin: 4px 0 0; font-size: 13px; opacity: .9; }
-
-    .header-controls {
-      display: flex; gap: .75rem;
+    
+    .location-list {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 0.5rem;
     }
-    .logout-btn, .admin-toggle {
-      padding: .5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; color: white;
+    
+    .location-item {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
     }
-    .logout-btn { background: #e74c3c; }
-    .logout-btn:hover { background: #c0392b; }
-    .admin-toggle { background: #3b82f6; }
-    .admin-toggle:hover { background: #2563eb; }
 
-    main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .location-item:hover {
+      background-color: #f5f5f5;
+    }
+
+    .location-item label {
+      width: 100%;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+    }
+
+    .location-item input[type="checkbox"] {
+      margin: 0;
+    }
+
+    .btn-small {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    
+    .location-item:last-child {
+      border-bottom: none;
+    }
+
+    header {
+      padding: 12px 16px;
+      background: linear-gradient(90deg, #2f5597, #4b72c1);
+      color: #fff;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    header p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
 
     #controls {
-      display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 16px;
-      background: #fff; box-shadow: 0 1px 3px rgba(15,23,42,.12); z-index: 500;
-    }
-    .control-group {
-      display: flex; flex-direction: column; min-width: 150px; max-width: 210px; font-size: 12px;
-    }
-    .control-group label { margin-bottom: 2px; font-weight: 600; color: #374151; }
-    .control-group select, .control-group input {
-      padding: 4px 6px; font-size: 12px; border-radius: 4px; border: 1px solid #d1d5db; background: #f9fafb;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      padding: 10px 16px;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+      z-index: 500;
     }
 
-    #map { flex: 1; min-height: 0; height: 100%; }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      min-width: 150px;
+      max-width: 210px;
+      font-size: 12px;
+    }
+
+    .control-group label {
+      margin-bottom: 2px;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .control-group select,
+    .control-group input {
+      padding: 4px 6px;
+      font-size: 12px;
+      border-radius: 4px;
+      border: 1px solid #d1d5db;
+      background: #f9fafb;
+      outline: none;
+    }
+
+    .control-group select:focus,
+    .control-group input:focus {
+      border-color: #2f5597;
+      box-shadow: 0 0 0 1px rgba(47, 85, 151, 0.2);
+      background: #ffffff;
+    }
+
+    #map {
+      flex: 1;
+      min-height: 0;
+    }
 
     #status-bar {
-      padding: 6px 16px; font-size: 11px; background: #eef2ff; border-top: 1px solid #c7d2fe;
-      color: #1f2937; display: flex; justify-content: space-between; gap: 8px;
+      padding: 6px 16px;
+      font-size: 11px;
+      background: #eef2ff;
+      border-top: 1px solid #c7d2fe;
+      color: #1f2937;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
     }
 
-    .admin-panel {
-      position: fixed; top: 0; right: -400px; width: 380px; height: 100vh; background: white;
-      box-shadow: -2px 0 10px rgba(0,0,0,.1); padding: 1.5rem; overflow-y: auto; z-index: 2000;
-      transition: right .3s;
+    #status-bar span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .admin-panel.visible { right: 0; }
-    .admin-section { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb; }
-    .form-group { margin-bottom: 1rem; }
-    .form-input { width: 100%; padding: .5rem; border: 1px solid #d1d5db; border-radius: 4px; }
-    .btn { background: #3b82f6; color: white; border: none; padding: .5rem 1rem; border-radius: 4px; cursor: pointer; }
-    .btn:hover { background: #2563eb; }
-    .btn-secondary { background: #6b7280; } .btn-secondary:hover { background: #4b5563; }
-
-    .popup-exclude-btn {
-      background: #dc2626; color: white; border: none; padding: 4px 8px; font-size: 11px;
-      border-radius: 3px; cursor: pointer; margin-top: 6px; width: 100%;
-    }
-    .popup-exclude-btn:hover { background: #b91c1c; }
 
     @media (max-width: 768px) {
-      .control-group { min-width: 45%; }
-      header h1 { font-size: 16px; }
-      header p { font-size: 12px; }
+      .control-group {
+        min-width: 45%;
+      }
+
+      header h1 {
+        font-size: 16px;
+      }
+
+      header p {
+        font-size: 12px;
+      }
     }
   </style>
 </head>
 <body>
-
   <header>
-    <div>
-      <h1>Homebased Business Radius Explorer</h1>
-      <p>Click a marker to set center, adjust rings, hover rings for counts.</p>
-    </div>
+    <h1>Homebased Business Radius Explorer</h1>
+    <p>
+      Click a marker to set the center, adjust rings, and hover over each ring to see how many records fall inside.
+    </p>
     <div class="header-controls">
       <button id="adminToggle" class="admin-toggle">Admin Panel</button>
       <button id="logoutBtn" class="logout-btn">Logout</button>
@@ -96,366 +319,1033 @@
 
   <main>
     <section id="controls">
-      <div class="control-group"><label for="ringCount">Number of Rings (1–5)</label><input type="number" id="ringCount" min="1" max="5" value="3" /></div>
-      <div class="control-group"><label for="ringStep">Ring Step (miles)</label><input type="number" id="ringStep" min="0.1" step="0.1" value="1" /></div>
-      <div class="control-group"><label for="radiusFilter">Radius Filter</label><select id="radiusFilter"><option value="all">All Rings</option></select></div>
-      <div class="control-group"><label for="lobFilter">Line of Business</label><select id="lobFilter"><option value="all">All</option></select></div>
-      <div class="control-group"><label for="yearFilter">Year Founded</label><select id="yearFilter"><option value="all">All</option></select></div>
-      <div class="control-group"><label for="cityFilter">City</label><select id="cityFilter"><option value="all">All</option></select></div>
-      <div class="control-group"><label for="naicsFilter">NAICS</label><select id="naicsFilter"><option value="all">All</option></select></div>
+      <div class="control-group">
+        <label for="ringCount">Number of Rings (1–5)</label>
+        <input type="number" id="ringCount" min="1" max="5" value="3" />
+      </div>
+
+      <div class="control-group">
+        <label for="ringStep">Ring Step Distance (miles)</label>
+        <input type="number" id="ringStep" min="0.1" step="0.1" value="1" />
+      </div>
+
+      <div class="control-group">
+        <label for="radiusFilter">Radius Ring Filter</label>
+        <select id="radiusFilter">
+          <option value="all">All Rings</option>
+          <!-- Options 1..N are filled dynamically -->
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="lobFilter">Line of Business</label>
+        <select id="lobFilter">
+          <option value="all">All</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="yearFilter">Year of Founding</label>
+        <select id="yearFilter">
+          <option value="all">All</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="cityFilter">Physical City</label>
+        <select id="cityFilter">
+          <option value="all">All</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="naicsFilter">Primary NAICS Description</label>
+        <select id="naicsFilter">
+          <option value="all">All</option>
+        </select>
+      </div>
     </section>
 
     <div id="map"></div>
-
+    
+    <!-- Admin Panel (initially hidden) -->
     <div id="adminPanel" class="admin-panel">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-        <h3 style="margin:0;">Admin Controls</h3>
-        <button id="closeAdminPanel" class="btn btn-secondary">Close</button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">Admin Controls</h3>
+        <button id="closeAdminPanel" class="btn btn-secondary" style="margin: 0;">Close Panel</button>
       </div>
-
+      
       <div class="admin-section">
-        <h4>Dataset Visibility</h4>
-        <button id="toggleAddressesBtn" class="btn">Hide All Addresses</button>
+        <h4>Address Visualization</h4>
+        <button id="toggleAddressesBtn" class="btn">
+          Hide All Addresses
+        </button>
       </div>
-
+      
       <div class="admin-section">
-        <h4>Ring Settings</h4>
-        <button id="saveRingConfigBtn" class="btn">Save Ring Config</button>
+        <h4>Security Settings</h4>
+        <div class="form-group">
+          <label for="newPassword">Set New Password</label>
+          <input type="password" id="newPassword" placeholder="Enter new password" class="form-input">
+          <button id="updatePasswordBtn" class="btn" style="margin-top: 0.5rem;">Update Password</button>
+        </div>
       </div>
-
+      
       <div class="admin-section">
         <h4>Manage Target Addresses</h4>
         <div class="form-group">
-          <input type="text" id="newAddressName" placeholder="Name" class="form-input">
+          <input type="text" id="newAddressName" placeholder="Address name" class="form-input">
           <input type="text" id="newAddressLat" placeholder="Latitude" class="form-input">
-          <input type="text" id="newAddressLng" placeholder="Longitude" class="form-input">
-          <button id="addAddressBtn" class="btn">Add</button>
+          <div class="form-group">
+            <label for="newAddressLng">Longitude:</label>
+            <input type="number" id="newAddressLng" class="form-input" step="any" />
+          </div>
+          <div class="form-group">
+            <label for="addressLogo">Logo URL (optional):</label>
+            <input type="text" id="addressLogo" class="form-input" placeholder="https://example.com/logo.png" />
+            <small>Or upload a file: <input type="file" id="logoUpload" accept="image/*" style="display: none;" onchange="handleLogoUpload()" />
+            <a href="#" onclick="document.getElementById('logoUpload').click(); return false;">Choose File</a></small>
+            <div id="logoPreview" style="margin-top: 10px; max-width: 100px; max-height: 50px; display: none;">
+              <img id="logoPreviewImg" src="" style="max-width: 100%; max-height: 100%;" />
+            </div>
+          </div>
+          <button id="addAddressBtn" class="btn">Add Address</button>
         </div>
-        <div id="savedAddressesList"></div>
+        <div class="address-list">
+          <h5>Saved Addresses</h5>
+          <ul id="savedAddresses"></ul>
+        </div>
       </div>
-
+      
+      <button id="closeAdminPanelBottom" class="btn btn-secondary" style="width: 100%; margin-top: 1rem; display: none;">Close Panel</button>
+      
       <div class="admin-section">
-        <h4>Login Screen Text</h4>
-        <div class="form-group"><label for="loginHeroTitle">Hero Title</label><input type="text" id="loginHeroTitle" class="form-input"></div>
-        <div class="form-group"><label for="loginHeroSubtitle">Hero Subtitle</label><input type="text" id="loginHeroSubtitle" class="form-input"></div>
-        <div class="form-group"><label for="loginFormTitle">Form Title</label><input type="text" id="loginFormTitle" class="form-input"></div>
-        <div class="form-group"><label for="loginFormSubtitle">Form Subtitle</label><input type="text" id="loginFormSubtitle" class="form-input"></div>
-        <button id="saveLoginTextBtn" class="btn">Save</button>
+        <h4>Location Visibility</h4>
+        <div class="visibility-controls">
+          <div class="form-group">
+            <input type="text" id="locationFilter" placeholder="Filter locations..." class="form-input">
+          </div>
+          <div class="location-list" id="locationList">
+            <!-- Locations will be populated by JavaScript -->
+          </div>
+        </div>
       </div>
+      
+      <button id="closeAdminPanel" class="btn btn-secondary">Close Panel</button>
+    </div>
+
+    <div id="status-bar">
+      <span id="centerStatus">Center: click a marker to set the radius center.</span>
+      <span id="recordsStatus">Records shown: 0</span>
     </div>
   </main>
 
-  <div id="status-bar">
-    <span id="recordsStatus">Records shown: 0</span>
-    <span id="centerStatus">Center: Click a marker</span>
-  </div>
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
 
-  <!-- Scripts -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Papa Parse for CSV -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <script>
-    // === CONFIG ===
+    // Adjust this to match your CSV file path
     const CSV_URL = "homebased_businesses_upto5yrs.csv";
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbziA154kkejooSz4Imv94x7l5HLnodwQaAiX7m4trDDbHY0qUnqexq7ofzfIYq0BGpTqA/exec";
 
-    let map, markersLayer = L.layerGroup(), ringsLayer = L.layerGroup();
-    let allRecords = [], activeCenter = null;
-    let ringConfig = {count: 3, stepMiles: 1};
-    let savedAddresses = [], excludedIds = new Set(), showDataset = true;
+    // Column names from your dataset
+    const COL_LAT = "Latitude";
+    const COL_LNG = "Longtitude"; // spelled this way in the Excel file
+    const COL_LOB = "Line_of_Business";
+    const COL_YEAR = "Year_of_Founding";
+    const COL_CITY = "Physical_City";
+    const COL_NAICS_DESC = "Primary_NAICS_Description";
+    const COL_NAME = "Physical_Address"; // used as a display label
 
-    // === DOM READY ===
+    let map;
+    let markersLayer = L.layerGroup();
+    let ringsLayer = L.layerGroup();
+    let allRecords = [];
+    let activeCenter = null; // {lat, lng, name?}
+    let markers = {}; // Initialize markers object
+    let ringConfig = {
+      count: 3,
+      stepMiles: 1
+    };
+    let savedAddresses = [];
+    let locationVisibility = {};
+    let showAllAddresses = true;
+    let addressLayers = {}; // Store layers for each address
+
+    const controls = {};
+    const statusEls = {};
+
+    // Logout function
+    function logout() {
+      sessionStorage.removeItem('isAuthenticated');
+      window.location.href = 'login.html';
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
+      // Check authentication
       if (sessionStorage.getItem('isAuthenticated') !== 'true') {
         window.location.href = 'login.html';
         return;
       }
-
+      
+      cacheDom();
       initMap();
-      bindEvents();
-      loadConfigFromGAS();
+      bindControlEvents();
+      bindAdminEvents();
+      loadSavedAddresses();
       loadCsvData();
+      
+      // Add logout button event
+      document.getElementById('logoutBtn').addEventListener('click', logout);
     });
 
-    // === MAP INIT ===
+    function cacheDom() {
+      controls.ringCount = document.getElementById("ringCount");
+      controls.ringStep = document.getElementById("ringStep");
+      controls.radiusFilter = document.getElementById("radiusFilter");
+      controls.lobFilter = document.getElementById("lobFilter");
+      controls.yearFilter = document.getElementById("yearFilter");
+      controls.cityFilter = document.getElementById("cityFilter");
+      controls.naicsFilter = document.getElementById("naicsFilter");
+      controls.adminToggle = document.getElementById("adminToggle");
+      controls.adminPanel = document.getElementById("adminPanel");
+      controls.closeAdminPanel = document.getElementById("closeAdminPanel");
+      controls.addAddressBtn = document.getElementById("addAddressBtn");
+      controls.newAddressName = document.getElementById("newAddressName");
+      controls.newAddressLat = document.getElementById("newAddressLat");
+      controls.newAddressLng = document.getElementById("newAddressLng");
+      controls.savedAddresses = document.getElementById("savedAddresses");
+      controls.locationFilter = document.getElementById("locationFilter");
+      controls.locationList = document.getElementById("locationList");
+
+      statusEls.center = document.getElementById("centerStatus");
+      statusEls.records = document.getElementById("recordsStatus");
+    }
+
     function initMap() {
-      map = L.map('map').setView([36.85, -76.35], 11);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
+      map = L.map("map").setView([37.0, -76.4], 11);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
       }).addTo(map);
+
       markersLayer.addTo(map);
       ringsLayer.addTo(map);
+
+      // Fix map rendering when first shown
+      setTimeout(() => map.invalidateSize(), 300);
     }
 
-    // === EVENT BINDING ===
-    function bindEvents() {
-      document.getElementById('adminToggle').addEventListener('click', () => {
-        document.getElementById('adminPanel').classList.toggle('visible');
+    function bindAdminEvents() {
+      // Toggle admin panel
+      controls.adminToggle.addEventListener("click", () => {
+        controls.adminPanel.classList.toggle("visible");
       });
-      document.getElementById('closeAdminPanel').addEventListener('click', () => {
-        document.getElementById('adminPanel').classList.remove('visible');
+
+      // Close admin panel
+      controls.closeAdminPanel.addEventListener("click", () => {
+        controls.adminPanel.classList.remove("visible");
       });
-      document.getElementById('logoutBtn').addEventListener('click', () => {
-        sessionStorage.removeItem('isAuthenticated');
-        sessionStorage.removeItem('role');
-        window.location.href = 'login.html';
+
+      // Add new address
+      controls.addAddressBtn.addEventListener("click", addNewAddress);
+
+      // Filter locations
+      controls.locationFilter.addEventListener("input", updateLocationList);
+      
+      // Update password
+      document.getElementById('updatePasswordBtn').addEventListener('click', updatePassword);
+      
+      // Toggle address visualization
+      document.getElementById('toggleAddressesBtn').addEventListener('click', function() {
+        showAllAddresses = !showAllAddresses;
+        this.textContent = showAllAddresses ? 'Hide All Addresses' : 'Show All Addresses';
+        updateAddressVisualizations();
+        localStorage.setItem('showAllAddresses', showAllAddresses);
       });
-      document.getElementById('saveRingConfigBtn').addEventListener('click', saveRingConfig);
-      document.getElementById('toggleAddressesBtn').addEventListener('click', toggleDataset);
-      document.getElementById('addAddressBtn').addEventListener('click', addAddress);
-      document.getElementById('saveLoginTextBtn').addEventListener('click', saveLoginText);
-
-      // Filters
-      ['lobFilter','yearFilter','cityFilter','naicsFilter','radiusFilter'].forEach(id => {
-        document.getElementById(id).addEventListener('change', recomputeAndRedraw);
-      });
+      
+      // Load saved toggle state
+      if (localStorage.getItem('showAllAddresses') !== null) {
+        showAllAddresses = localStorage.getItem('showAllAddresses') === 'true';
+        document.getElementById('toggleAddressesBtn').textContent = 
+          showAllAddresses ? 'Hide All Addresses' : 'Show All Addresses';
+      }
     }
-
-    // === GAS COMMUNICATION ===
-    function loadConfigFromGAS() {
-      fetch(`${GAS_URL}?action=getConfig`, { mode: 'cors' })
-        .then(r => r.json())
-        .then(data => {
-          savedAddresses = data.savedAddresses || [];
-          excludedIds = new Set(data.excludedIds || []);
-          showDataset = data.showDataset !== false;
-          ringConfig = data.ringConfig || {count:3, stepMiles:1};
-          document.getElementById('ringCount').value = ringConfig.count;
-          document.getElementById('ringStep').value = ringConfig.stepMiles;
-          updateRadiusFilterOptions();
-          populateSavedAddresses();
-        })
-        .catch(console.error);
-    }
-
-    function saveConfigToGAS() {
-      const payload = {
-        action: 'saveConfig',
-        config: { savedAddresses, excludedIds: Array.from(excludedIds), showDataset, ringConfig }
-      };
-      fetch(GAS_URL, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    }
-
-    // === ADMIN FUNCTIONS ===
-    function saveRingConfig() {
-      ringConfig.count = +document.getElementById('ringCount').value;
-      ringConfig.stepMiles = +document.getElementById('ringStep').value;
-      updateRadiusFilterOptions();
-      saveConfigToGAS();
-    }
-
-    function toggleDataset() {
-      showDataset = !showDataset;
-      document.getElementById('toggleAddressesBtn').textContent = showDataset ? 'Hide All Addresses' : 'Show All Addresses';
-      saveConfigToGAS();
-      recomputeAndRedraw();
-    }
-
-    function addAddress() {
-      const name = document.getElementById('newAddressName').value.trim();
-      const lat = parseFloat(document.getElementById('newAddressLat').value);
-      const lng = parseFloat(document.getElementById('newAddressLng').value);
-      if (name && isFinite(lat) && isFinite(lng)) {
-        savedAddresses.push({ name, lat, lng });
-        saveConfigToGAS();
-        populateSavedAddresses();
-        document.getElementById('newAddressName').value = '';
-        document.getElementById('newAddressLat').value = '';
-        document.getElementById('newAddressLng').value = '';
+    
+    function updatePassword() {
+      const newPassword = document.getElementById('newPassword').value;
+      if (newPassword && newPassword.length >= 6) {
+        localStorage.setItem('adminPassword', newPassword);
+        alert('Password updated successfully!');
+        document.getElementById('newPassword').value = '';
+      } else {
+        alert('Password must be at least 6 characters long');
       }
     }
 
-    function populateSavedAddresses() {
-      const list = document.getElementById('savedAddressesList');
-      list.innerHTML = '<h5>Saved Addresses</h5><ul>' + savedAddresses.map((a, i) => `
-        <li style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
-          <span>${a.name} (${a.lat}, ${a.lng})</span>
-          <button onclick="removeAddress(${i})" style="color:red; font-size:10px;">Remove</button>
-        </li>
-      `).join('') + '</ul>';
-    }
+    function bindControlEvents() {
+      // Ring controls
+      controls.ringCount.addEventListener("change", (e) => {
+        ringConfig.count = Math.min(5, Math.max(1, parseInt(e.target.value) || 3));
+        controls.ringCount.value = ringConfig.count;
+        updateRadiusFilterOptions();
+        recomputeAndRedraw();
+      });
 
-    window.removeAddress = function(i) {
-      savedAddresses.splice(i, 1);
-      saveConfigToGAS();
-      populateSavedAddresses();
-    };
+      controls.ringStep.addEventListener("change", (e) => {
+        ringConfig.stepMiles = Math.max(0.1, parseFloat(e.target.value) || 1);
+        controls.ringStep.value = ringConfig.stepMiles;
+        updateRadiusFilterOptions();
+        recomputeAndRedraw();
+      });
 
-    function saveLoginText() {
-      const text = {
-        heroTitle: document.getElementById('loginHeroTitle').value,
-        heroSubtitle: document.getElementById('loginHeroSubtitle').value,
-        formTitle: document.getElementById('loginFormTitle').value,
-        formSubtitle: document.getElementById('loginFormSubtitle').value
-      };
-      fetch(GAS_URL, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'saveLoginText', text })
-      }).then(() => alert('Login text saved!'));
-    }
+      controls.radiusFilter.addEventListener("change", (e) => {
+        recomputeAndRedraw();
+      });
 
-    // === CSV & MAP LOGIC ===
-    function loadCsvData() {
-      Papa.parse(CSV_URL, {
-        header: true, download: true, dynamicTyping: true, skipEmptyLines: true,
-        complete: results => {
-          allRecords = results.data
-            .map(r => ({
-              id: r.Record_ID,
-              lat: parseFloat(r.Latitude),
-              lng: parseFloat(r.Longtitude),
-              lineOfBusiness: r.Line_of_Business || '',
-              yearFounded: r.Year_of_Founding || '',
-              city: r.Physical_City || '',
-              naicsDesc: r.Primary_NAICS_Description ||子上'',
-              label: r.Physical_Address || r.Physical_City || 'Location'
-            }))
-            .filter(r => isFinite(r.lat) && isFinite(r.lng));
-          populateFilters();
-          drawMarkersAndRings();
+      // Filter controls
+      [controls.lobFilter, controls.yearFilter, controls.cityFilter, controls.naicsFilter].forEach(
+        (sel) => {
+          sel.addEventListener("change", () => {
+            redrawMarkersAndRings();
+          });
+        }
+      );
+      
+      // Handle marker clicks for toggling visibility
+      map.on('click', function(e) {
+        // Only proceed if a marker was clicked
+        const marker = e.layer;
+        if (marker && marker.feature) {
+          const location = marker.feature.properties[COL_LOCATION];
+          if (location) {
+            const locationId = location.replace(/\s+/g, '_');
+            // Toggle visibility
+            const isVisible = locationVisibility[locationId] !== false;
+            locationVisibility[locationId] = !isVisible;
+            localStorage.setItem('locationVisibility', JSON.stringify(locationVisibility));
+            
+            // Update the marker style
+            if (marker.setStyle) {
+              marker.setStyle({
+                opacity: isVisible ? 0 : 1,
+                fillOpacity: isVisible ? 0 : 0.7
+              });
+            }
+            
+            // Update the location list in the admin panel
+            updateLocationList();
+          }
         }
       });
     }
 
-    function populateFilters() {
-      const add = (id, vals) => {
-        const sel = document.getElementById(id);
-        sel.innerHTML = '<option value="all">All</option>';
-        vals.forEach(v => {
-          const o = document.createElement('option');
-          o.value = v; o.textContent = v; sel.appendChild(o);
-        });
-      };
-      add('lobFilter', [...new Set(allRecords.map(r => r.lineOfBusiness).filter(Boolean))].sort());
-      add('yearFilter', [...new Set(allRecords.map(r => r.yearFounded).filter(Boolean))].sort());
-      add('cityFilter', [...new Set(allRecords.map(r => r.city).filter(Boolean))].sort());
-      add('naicsFilter', [...new Set(allRecords.map(r => r.naicsDesc).filter(Boolean))].sort());
+    function loadCsvData() {
+      Papa.parse(CSV_URL, {
+        header: true,
+        download: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const rows = results.data || [];
+          allRecords = rows
+            .map((row) => {
+              const lat = parseFloat(row[COL_LAT]);
+              const lng = parseFloat(row[COL_LNG]);
+              if (!isFinite(lat) || !isFinite(lng)) return null;
+
+              return {
+                raw: row,
+                lat,
+                lng,
+                lineOfBusiness: row[COL_LOB] || "",
+                yearFounded: row[COL_YEAR] || "",
+                city: row[COL_CITY] || "",
+                naicsDesc: row[COL_NAICS_DESC] || "",
+                label: row[COL_NAME] || row[COL_CITY] || "Location"
+              };
+            })
+            .filter(Boolean);
+
+          populateFilterOptions();
+          updateRadiusFilterOptions();
+          drawInitialMarkers();
+        },
+        error: (error) => {
+          console.error("Error loading CSV:", error);
+          alert("Failed to load CSV data. Check the CSV_URL path and hosting setup.");
+        }
+      });
+    }
+
+    function populateFilterOptions() {
+      const unique = (arr) =>
+        Array.from(new Set(arr.filter((v) => v !== null && v !== undefined && String(v).trim() !== "")));
+
+      const lobs = unique(allRecords.map((r) => r.lineOfBusiness)).sort();
+      const years = unique(allRecords.map((r) => r.yearFounded)).sort((a, b) => a - b);
+      const cities = unique(allRecords.map((r) => r.city)).sort();
+      const naicsDescs = unique(allRecords.map((r) => r.naicsDesc)).sort();
+
+      fillSelect(controls.lobFilter, lobs);
+      fillSelect(controls.yearFilter, years.map(String));
+      fillSelect(controls.cityFilter, cities);
+      fillSelect(controls.naicsFilter, naicsDescs);
+    }
+
+    function fillSelect(selectEl, values) {
+      // Clear existing (keep "All")
+      while (selectEl.options.length > 1) {
+        selectEl.remove(1);
+      }
+
+      values.forEach((val) => {
+        const opt = document.createElement("option");
+        opt.value = String(val);
+        opt.textContent = String(val);
+        selectEl.appendChild(opt);
+      });
     }
 
     function updateRadiusFilterOptions() {
-      const sel = document.getElementById('radiusFilter');
-      sel.innerHTML = '<option value="all">All Rings</option>';
-      for (let i = 1; i <= ringConfig.count; i++) {
-        const o = document.createElement('option');
-        o.value = i;
-        o.textContent = `Within ${i * ringConfig.stepMiles} miles`;
-        sel.appendChild(o);
+      const select = controls.radiusFilter;
+      while (select.options.length > 1) {
+        select.remove(1);
       }
+      const n = ringConfig.count;
+      for (let i = 1; i <= n; i++) {
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = `Ring ${i}`;
+        select.appendChild(opt);
+      }
+    }
+
+    // Save addresses to localStorage
+    function saveAddresses() {
+      localStorage.setItem('savedAddresses', JSON.stringify(savedAddresses));
+    }
+
+    // Handle logo file upload
+    function handleLogoUpload() {
+      const fileInput = document.getElementById('logoUpload');
+      const logoUrlInput = document.getElementById('addressLogo');
+      const logoPreview = document.getElementById('logoPreview');
+      const logoPreviewImg = document.getElementById('logoPreviewImg');
+      
+      const file = fileInput.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        logoUrlInput.value = dataUrl;
+        logoPreviewImg.src = dataUrl;
+        logoPreview.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    // Load saved addresses from localStorage
+    function loadSavedAddresses() {
+      const saved = localStorage.getItem('savedAddresses');
+      if (saved) {
+        try {
+          savedAddresses = JSON.parse(saved);
+          // Ensure old saved addresses have a logoUrl property
+          savedAddresses = savedAddresses.map(addr => ({
+            ...addr,
+            logoUrl: addr.logoUrl || null
+          }));
+          updateAddressList();
+        } catch (e) {
+          console.error('Error loading saved addresses:', e);
+          savedAddresses = [];
+        }
+      }
+    }
+
+    // Add a new address to the saved addresses
+    function addNewAddress() {
+      const name = controls.newAddressName.value.trim();
+      const lat = parseFloat(controls.newAddressLat.value);
+      const lng = parseFloat(controls.newAddressLng.value);
+      const logoUrl = document.getElementById('addressLogo').value.trim() || null;
+
+      if (!name || isNaN(lat) || isNaN(lng)) {
+        alert('Please fill in all fields with valid values');
+        return;
+      }
+
+      const newAddress = { 
+        id: Date.now().toString(), 
+        name, 
+        lat, 
+        lng, 
+        logoUrl 
+      };
+      
+      savedAddresses.push(newAddress);
+      saveAddresses();
+      updateAddressList();
+      updateAddressVisualizations();
+
+      // Clear the form
+      controls.newAddressName.value = '';
+      controls.newAddressLat.value = '';
+      controls.newAddressLng.value = '';
+      document.getElementById('addressLogo').value = '';
+      document.getElementById('logoPreview').style.display = 'none';
+      document.getElementById('logoUpload').value = '';
+    }
+
+    // Update the saved addresses list in the UI
+    function updateAddressList() {
+      controls.savedAddresses.innerHTML = '';
+      
+      savedAddresses.forEach(addr => {
+        const li = document.createElement('li');
+        
+        const addrContainer = document.createElement('div');
+        addrContainer.style.display = 'flex';
+        addrContainer.style.alignItems = 'center';
+        addrContainer.style.gap = '10px';
+        
+        // Add logo preview if available
+        if (addr.logoUrl) {
+          const logoPreview = document.createElement('div');
+          logoPreview.style.width = '30px';
+          logoPreview.style.height = '30px';
+          logoPreview.style.backgroundImage = `url('${addr.logoUrl}')`;
+          logoPreview.style.backgroundSize = 'contain';
+          logoPreview.style.backgroundRepeat = 'no-repeat';
+          logoPreview.style.backgroundPosition = 'center';
+          logoPreview.style.borderRadius = '50%';
+          logoPreview.style.border = '1px solid #ddd';
+          addrContainer.appendChild(logoPreview);
+        } else {
+          // Empty placeholder for alignment
+          const emptyPreview = document.createElement('div');
+          emptyPreview.style.width = '30px';
+          emptyPreview.style.height = '30px';
+          emptyPreview.style.border = '1px dashed #ddd';
+          emptyPreview.style.borderRadius = '50%';
+          addrContainer.appendChild(emptyPreview);
+        }
+        
+        const addrText = document.createElement('span');
+        addrText.textContent = `${addr.name} (${addr.lat.toFixed(6)}, ${addr.lng.toFixed(6)})`;
+        
+        const btnGroup = document.createElement('div');
+        
+        const viewBtn = document.createElement('button');
+        viewBtn.textContent = 'View';
+        viewBtn.className = 'btn btn-small';
+        viewBtn.onclick = () => {
+          // Set the active center to the selected address
+          activeCenter = { lat: addr.lat, lng: addr.lng, name: addr.name };
+          statusEls.center.textContent = `Center: ${addr.name}`;
+          
+          // Set the map view to the selected address
+          map.setView([addr.lat, addr.lng], 13);
+          
+          // Recompute rings and redraw markers
+          recomputeAndRedraw(true);
+          
+          // Update the UI to show only the selected address
+          updateAddressVisualizations();
+        };
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.className = 'btn btn-small btn-secondary';
+        deleteBtn.onclick = () => {
+          removeAddress(addr.id);
+        };
+        
+        btnGroup.appendChild(viewBtn);
+        btnGroup.appendChild(deleteBtn);
+        
+        li.appendChild(addrText);
+        li.appendChild(btnGroup);
+        controls.savedAddresses.appendChild(li);
+      });
+    }
+
+    function updateAllLocationVisibilities(visible) {
+      const uniqueLocations = [...new Set(allRecords.map(r => r[COL_LOCATION]))];
+      uniqueLocations.forEach(location => {
+        if (location) {
+          const locationId = location.replace(/\s+/g, '_');
+          locationVisibility[locationId] = visible;
+        }
+      });
+      
+      localStorage.setItem('locationVisibility', JSON.stringify(locationVisibility));
+      updateLocationList();
+      redrawMarkersAndRings();
+    }
+    
+    // Update address visualizations based on showAllAddresses state
+    function updateAddressVisualizations() {
+      // Always ensure markers are in the map layer, but control visibility with opacity
+      Object.entries(markers).forEach(([id, marker]) => {
+        if (marker && marker.setOpacity) {
+          // If we have an active center, only show that marker
+          if (activeCenter) {
+            const markerLatLng = marker.getLatLng();
+            const isActiveCenter = markerLatLng.lat === activeCenter.lat && 
+                                 markerLatLng.lng === activeCenter.lng;
+            marker.setOpacity(isActiveCenter ? 1 : 0);
+          }
+          // Otherwise, show/hide based on showAllAddresses
+          else {
+            marker.setOpacity(showAllAddresses ? 1 : 0);
+          }
+          
+          // Ensure marker is in the layer (but might be transparent)
+          if (!markersLayer.hasLayer(marker)) {
+            markersLayer.addLayer(marker);
+          }
+        }
+      });
+      
+      // Force a redraw of the map
+      if (map) {
+        map.invalidateSize();
+      }
+    }
+    
+    function updateLocationList() {
+      const locationList = document.getElementById('locationList');
+      const filter = document.getElementById('locationFilter')?.value?.toLowerCase() || '';
+      
+      // Add check all/uncheck all buttons
+      locationList.innerHTML = `
+        <div style="margin-bottom: 10px; display: flex; gap: 10px;">
+          <button id="checkAllBtn" class="btn btn-small">Check All</button>
+          <button id="uncheckAllBtn" class="btn btn-small btn-secondary">Uncheck All</button>
+        </div>
+        <div id="locationItemsContainer" style="max-height: 300px; overflow-y: auto;">
+          <!-- Locations will be populated here -->
+        </div>
+      `;
+      
+      const itemsContainer = document.getElementById('locationItemsContainer');
+      const uniqueLocations = [...new Set(allRecords.map(r => r[COL_LOCATION]))].sort();
+      let visibleCount = 0;
+      
+      uniqueLocations.forEach(location => {
+        if (location && (filter === '' || location.toLowerCase().includes(filter))) {
+          const locationId = location.replace(/\s+/g, '_');
+          const isVisible = locationVisibility[locationId] !== false;
+          if (isVisible) visibleCount++;
+          
+          const item = document.createElement('div');
+          item.className = 'location-item';
+          item.innerHTML = `
+            <label>
+              <input type="checkbox" data-location="${locationId}" ${isVisible ? 'checked' : ''}>
+              <span>${location}</span>
+            </label>
+          `;
+          
+          const checkbox = item.querySelector('input');
+          checkbox.addEventListener('change', function() {
+            locationVisibility[this.dataset.location] = this.checked;
+            localStorage.setItem('locationVisibility', JSON.stringify(locationVisibility));
+            redrawMarkersAndRings();
+            updateLocationList(); // Refresh the count
+          });
+          
+          itemsContainer.appendChild(item);
+        }
+      });
+      
+      // Add status text
+      const statusText = document.createElement('div');
+      statusText.style.marginTop = '8px';
+      statusText.style.fontSize = '12px';
+      statusText.style.color = '#666';
+      statusText.textContent = `${visibleCount} of ${uniqueLocations.length} locations visible`;
+      locationList.appendChild(statusText);
+      
+      // Add event listeners for check all/uncheck all buttons
+      document.getElementById('checkAllBtn').addEventListener('click', () => {
+        updateAllLocationVisibilities(true);
+      });
+      
+      document.getElementById('uncheckAllBtn').addEventListener('click', () => {
+        updateAllLocationVisibilities(false);
+      });
+      
+      // Add event listener for location filter
+      const locationFilter = document.getElementById('locationFilter');
+      if (locationFilter) {
+        locationFilter.addEventListener('input', updateLocationList);
+      }
+    }
+
+    function drawInitialMarkers() {
+      markersLayer.clearLayers();
+      markers = {}; // Reset markers object
+      
+      // Load visibility settings
+      const savedVisibility = localStorage.getItem('locationVisibility');
+      if (savedVisibility) {
+        locationVisibility = JSON.parse(savedVisibility);
+      }
+
+      allRecords.forEach((rec, index) => {
+        // Create a unique ID for each marker if not exists
+        const markerId = rec.raw.id || `marker-${index}`;
+        
+        // Skip if this record is set to be hidden
+        if (locationVisibility[markerId] === false) return;
+        
+        const marker = L.circleMarker([rec.lat, rec.lng], {
+          radius: 4,
+          weight: 1,
+          color: "#2563eb",
+          fillColor: "#60a5fa",
+          fillOpacity: 0.9
+        });
+
+        const popupHtml = `
+          <div style="font-size: 12px;">
+            <strong>${escapeHtml(rec.label)}</strong><br/>
+            <em>${escapeHtml(rec.city)}</em><br/>
+            ${escapeHtml(rec.lineOfBusiness || "")}<br/>
+            Year Founded: ${escapeHtml(rec.yearFounded || "N/A")}<br/>
+            NAICS: ${escapeHtml(rec.naicsDesc || "")}<br/>
+            <hr/>
+            <span style="font-size:11px;color:#111;">Click to set this as the radius center.</span>
+          </div>`;
+
+        marker.bindPopup(popupHtml);
+
+        marker.on("click", () => {
+          activeCenter = { 
+            lat: rec.lat, 
+            lng: rec.lng,
+            name: rec.label
+          };
+          statusEls.center.textContent = `Center: ${rec.label} (${rec.city})`;
+          recomputeAndRedraw(true);
+        });
+
+        // Add marker to markers object with unique ID
+        markers[markerId] = marker;
+        markersLayer.addLayer(marker);
+      });
+      
+      // Update the location list in the admin panel
+      updateLocationList();
+
+      // Fit map to all visible markers
+      const visibleRecords = allRecords.filter((rec, index) => {
+        const markerId = rec.raw.id || `marker-${index}`;
+        return locationVisibility[markerId] !== false;
+      });
+      
+      if (visibleRecords.length > 0) {
+        const bounds = L.latLngBounds(visibleRecords.map((r) => [r.lat, r.lng]));
+        map.fitBounds(bounds.pad(0.1));
+      }
+
+      updateRecordsStatus(getMarkerRecords().length);
+    }
+
+    function recomputeAndRedraw(fitToCenter = false) {
+      // First compute ring assignments
+      computeRingAssignments();
+      
+      // Then redraw markers and rings
+      redrawMarkersAndRings(fitToCenter);
+      
+      // Finally, update address visualizations to ensure correct marker visibility
+      updateAddressVisualizations();
     }
 
     function computeRingAssignments() {
-      if (!activeCenter) return;
-      const c = L.latLng(activeCenter.lat, activeCenter.lng);
-      allRecords.forEach(r => {
-        if (excludedIds.has(r.id)) { r.ringIndex = 0; return; }
-        const d = map.distance(c, L.latLng(r.lat, r.lng)) / 1609.34;
-        r.ringIndex = 0;
-        for (let i = 1; i <= ringConfig.count; i++) {
-          if (d <= i * ringConfig.stepMiles) { r.ringIndex = i; break; }
-        }
-      });
-    }
-
-    function getFilteredRecords(ringFilter = true) {
-      const f = {
-        lob: document.getElementById('lobFilter').value,
-        year: document.getElementById('yearFilter').value,
-        city: document.getElementById('cityFilter').value,
-        naics: document.getElementById('naicsFilter').value,
-        radius: ringFilter ? document.getElementById('radiusFilter').value : 'all'
-      };
-      return allRecords.filter(r => {
-        if (excludedIds.has(r.id)) return false;
-        if (f.lob !== 'all' && r.lineOfBusiness !== f.lob) return false;
-        if (f.year !== 'all' && String(r.yearFounded) !== f.year) return false;
-        if (f.city !== 'all' && r.city !== f.city) return false;
-        if (f.naics !== 'all' && r.naicsDesc !== f.naics) return false;
-        if (ringFilter && f.radius !== 'all' && r.ringIndex !== parseInt(f.radius)) return false;
-        return true;
-      });
-    }
-
-    function drawMarkersAndRings() {
-      markersLayer.clearLayers(); ringsLayer.clearLayers();
-      const display = showDataset ? getFilteredRecords(false) : [];
-
-      display.forEach(rec => {
-        const isCenter = activeCenter && rec.lat === activeCenter.lat && rec.lng === activeCenter.lng;
-        const m = L.circleMarker([rec.lat, rec.lng], {
-          radius: isCenter ? 6 : 4, weight: 1,
-          color: isCenter ? "#b91c1c" : "#2563eb",
-          fillColor: isCenter ? "#fecaca" : "#60a5fa", fillOpacity: 0.9
+      if (!activeCenter || !map) {
+        allRecords.forEach((r) => {
+          r.distanceMiles = null;
+          r.ringIndex = null;
         });
-        const popup = `
-          <div style="font-size:12px;">
-            <strong>${escape(rec.label)}</strong><br/>
-            <em>${escape(rec.city)}</em><br/>
-            ${escape(rec.lineOfBusiness)}<br/>
-            Year: ${escape(rec.yearFounded || "N/A")}<br/>
-            NAICS: ${escape(rec.naicsDesc)}
-            <button class="popup-exclude-btn" onclick="excludePoint('${rec.id}')">Exclude Point</button>
-          </div>`;
-        m.bindPopup(popup);
-        m.on('click', () => {
-          activeCenter = { lat: rec.lat, lng: rec.lng, name: rec.label };
-          document.getElementById('centerStatus').textContent = `Center: ${rec.label}`;
-          recomputeAndRedraw(true);
-        });
-        markersLayer.addLayer(m);
-      });
-
-      savedAddresses.forEach(a => {
-        const m = L.circleMarker([a.lat, a.lng], { radius: 6, weight: 1, color: "#b91c1c", fillColor: "#fecaca", fillOpacity: 0.9 });
-        m.bindPopup(`<strong>${escape(a.name)}</strong>`);
-        m.on('click', () => {
-          activeCenter = { lat: a.lat, lng: a.lng, name: a.name };
-          document.getElementById('centerStatus').textContent = `Center: ${a.name}`;
-          recomputeAndRedraw(true);
-        });
-        markersLayer.addLayer(m);
-      });
-
-      if (activeCenter) {
-        const c = L.latLng(activeCenter.lat, activeCenter.lng);
-        const counts = new Array(ringConfig.count + 1).fill(0);
-        getFilteredRecords(false).forEach(r => { if (r.ringIndex >= 1) counts[r.ringIndex]++; });
-        for (let i = 1; i <= ringConfig.count; i++) {
-          L.circle(c, {
-            radius: i * ringConfig.stepMiles * 1609.34,
-            color: i === 1 ? '#1e40af' : '#3b82f6',
-            weight: i === 1 ? 2 : 1,
-            opacity: 0.7, fillOpacity: 0.1, fillColor: '#3b82f6'
-          }).bindTooltip(
-            `<div style="text-align:center"><strong>${i * ringConfig.stepMiles} mile${i > 1 ? 's' : ''}</strong><br>${counts[i]} business${counts[i] !== 1 ? 'es' : ''}</div>`,
-            { permanent: false, direction: 'top' }
-          ).addTo(ringsLayer);
-        }
+        return;
+      }
+      
+      // If activeCenter has a name, it's a saved address
+      if (activeCenter.name) {
+        statusEls.center.textContent = `Center: ${activeCenter.name}`;
       }
 
-      document.getElementById('recordsStatus').textContent = `Records shown: ${getFilteredRecords().length}`;
+      const centerLatLng = L.latLng(activeCenter.lat, activeCenter.lng);
+      const stepMiles = ringConfig.stepMiles;
+      const maxRing = ringConfig.count;
+
+      allRecords.forEach((rec) => {
+        const dMeters = map.distance(centerLatLng, L.latLng(rec.lat, rec.lng));
+        const dMiles = dMeters / 1609.34;
+        rec.distanceMiles = dMiles;
+
+        if (dMiles === 0) {
+          rec.ringIndex = 1;
+        } else {
+          const idx = Math.ceil(dMiles / stepMiles);
+          rec.ringIndex = idx >= 1 && idx <= maxRing ? idx : null;
+        }
+      });
     }
 
-    function recomputeAndRedraw(fit = false) {
-      computeRingAssignments();
-      drawMarkersAndRings();
-      if (fit && activeCenter) map.setView([activeCenter.lat, activeCenter.lng], Math.max(map.getZoom(), 12));
+    function getBaseFilteredRecords() {
+      const lobVal = controls.lobFilter.value;
+      const yearVal = controls.yearFilter.value;
+      const cityVal = controls.cityFilter.value;
+      const naicsVal = controls.naicsFilter.value;
+
+      return allRecords.filter((rec) => {
+        if (lobVal !== "all" && String(rec.lineOfBusiness) !== lobVal) return false;
+        if (yearVal !== "all" && String(rec.yearFounded) !== yearVal) return false;
+        if (cityVal !== "all" && String(rec.city) !== cityVal) return false;
+        if (naicsVal !== "all" && String(rec.naicsDesc) !== naicsVal) return false;
+        return true; // Include record if it passes all filters
+      });
     }
 
-    window.excludePoint = function(id) {
-      excludedIds.add(id);
-      saveConfigToGAS();
-      recomputeAndRedraw();
-    };
+    function getMarkerRecords() {
+      const base = getBaseFilteredRecords();
+      const ringFilterVal = controls.radiusFilter.value;
 
-    function escape(s) {
-      return s ? String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])) : '';
+      if (!activeCenter || ringFilterVal === "all") {
+        return base;
+      }
+
+      const ringIndex = parseInt(ringFilterVal, 10);
+      if (!isFinite(ringIndex)) return base;
+
+      return base.filter((rec) => rec.ringIndex === ringIndex);
+    }
+
+    function redrawMarkersAndRings(fitToCenter = false) {
+      if (!map) return;
+      
+      // Clear existing layers
+      markersLayer.clearLayers();
+      ringsLayer.clearLayers();
+      
+      // Get filtered records
+      const markerRecords = getMarkerRecords();
+      
+      // Draw rings if we have an active center
+      if (activeCenter) {
+        const centerLatLng = L.latLng(activeCenter.lat, activeCenter.lng);
+        
+        // Draw rings
+        for (let i = 1; i <= ringConfig.count; i++) {
+          const radiusMeters = i * ringConfig.stepMiles * 1609.34; // Convert miles to meters
+          const ring = L.circle(centerLatLng, {
+            radius: radiusMeters,
+            color: '#3b82f6',
+            weight: 1,
+            fillColor: '#3b82f6',
+            fillOpacity: 0.1
+          });
+          
+          // Add hover effect to show count
+          ring.on('mouseover', () => {
+            const count = markerRecords.filter(r => 
+              r.distanceMiles <= i * ringConfig.stepMiles
+            ).length;
+            
+            ring.setStyle({
+              weight: 2,
+              color: '#1d4ed8'
+            });
+            
+            ring.bindTooltip(
+              `Within ${i} mile${i > 1 ? 's' : ''}: ${count} business${count !== 1 ? 'es' : ''}`,
+              { 
+                direction: 'top',
+                permanent: false,
+                className: 'ring-tooltip'
+              }
+            ).openTooltip();
+          });
+          
+          ring.on('mouseout', () => {
+            ring.setStyle({
+              weight: 1,
+              color: '#3b82f6'
+            });
+            ring.closeTooltip();
+          });
+          
+          ringsLayer.addLayer(ring);
+        }
+        
+        // Add center marker
+        const centerMarker = L.circleMarker(centerLatLng, {
+          radius: 6,
+          weight: 2,
+          color: '#1d4ed8',
+          fillColor: '#3b82f6',
+          fillOpacity: 1
+        }).bindTooltip(activeCenter.name || 'Center', { 
+          direction: 'top',
+          permanent: true,
+          className: 'center-tooltip'
+        });
+        
+        markersLayer.addLayer(centerMarker);
+      }
+      
+      // Add all markers to the map (visibility controlled by CSS)
+      markerRecords.forEach(rec => {
+        const markerId = rec.raw?.id || `marker-${rec.lat}-${rec.lng}`;
+        
+        // Create new marker if it doesn't exist
+        if (!markers[markerId]) {
+          // Check if this is a saved address with a logo
+          const savedAddress = savedAddresses.find(addr => 
+            addr.lat === rec.lat && addr.lng === rec.lng
+          );
+          
+          if (savedAddress?.logoUrl) {
+            // Create a custom icon for addresses with logos
+            const icon = L.divIcon({
+              html: `<div style="background-image: url('${savedAddress.logoUrl}'); 
+                                      background-size: contain; 
+                                      background-repeat: no-repeat; 
+                                      background-position: center; 
+                                      width: 40px; 
+                                      height: 40px;
+                                      border-radius: 50%;
+                                      border: 2px solid #3b82f6;
+                                      box-shadow: 0 0 10px rgba(0,0,0,0.2);"></div>`,
+              className: '',
+              iconSize: [40, 40],
+              iconAnchor: [20, 20]
+            });
+            
+            markers[markerId] = L.marker([rec.lat, rec.lng], { icon: icon });
+          } else {
+            // Default circle marker for addresses without logos
+            markers[markerId] = L.circleMarker([rec.lat, rec.lng], {
+              radius: 6,
+              weight: 1,
+              color: '#2563eb',
+              fillColor: '#60a5fa',
+              fillOpacity: 0.9
+            });
+          }
+          
+          // Add click handler to set as center
+          markers[markerId].on('click', () => {
+            activeCenter = { 
+              lat: rec.lat, 
+              lng: rec.lng, 
+              name: rec.label || `Location (${rec.lat.toFixed(4)}, ${rec.lng.toFixed(4)})` 
+            };
+            statusEls.center.textContent = `Center: ${activeCenter.name}`;
+            recomputeAndRedraw(true);
+          });
+        }
+        
+        // Update marker data
+        markers[markerId].record = rec;
+        
+        // Add popup
+        const popupContent = `
+          <div class="marker-popup">
+            <strong>${escapeHtml(rec.label || 'Location')}</strong><br>
+            ${rec.city ? `<em>${escapeHtml(rec.city)}</em><br>` : ''}
+            ${rec.lineOfBusiness ? `${escapeHtml(rec.lineOfBusiness)}<br>` : ''}
+            ${rec.yearFounded ? `Founded: ${escapeHtml(rec.yearFounded)}<br>` : ''}
+            ${rec.naicsDesc ? `NAICS: ${escapeHtml(rec.naicsDesc)}` : ''}
+          </div>
+        `;
+        
+        markers[markerId]
+          .bindPopup(popupContent, { maxWidth: 300 })
+          .on('popupopen', () => {
+            // Add any popup open handlers here if needed
+          });
+        
+        // Add to layer (visibility controlled by updateAddressVisualizations)
+        markersLayer.addLayer(markers[markerId]);
+      });
+      
+      // Update the map view if requested
+      if (fitToCenter && activeCenter) {
+        map.setView([activeCenter.lat, activeCenter.lng], Math.max(map.getZoom(), 12));
+      }
+      
+      // Update the status
+      updateRecordsStatus(markerRecords.length);
+
+      const baseFiltered = getBaseFilteredRecords(); // used for ring counts
+      const centerLatLng = L.latLng(activeCenter.lat, activeCenter.lng);
+      const stepMiles = ringConfig.stepMiles;
+      const maxRing = ringConfig.count;
+
+      // Count per ring (based on filters, but independent of radiusFilter)
+      const ringCounts = new Array(maxRing + 1).fill(0);
+      baseFiltered.forEach((rec) => {
+        if (rec.ringIndex && rec.ringIndex >= 1 && rec.ringIndex <= maxRing) {
+          ringCounts[rec.ringIndex]++;
+        }
+      });
+
+      for (let i = 1; i <= maxRing; i++) {
+        const radiusMiles = i * stepMiles;
+        const radiusMeters = radiusMiles * 1609.34;
+
+        const circle = L.circle(centerLatLng, {
+          radius: radiusMeters,
+          color: "#2f5597",
+          weight: 1,
+          fillOpacity: 0,
+          dashArray: "4 4"
+        });
+
+        const count = ringCounts[i] || 0;
+        const tooltipHtml = `
+          <div style="font-size:11px;">
+            <strong>Ring ${i}</strong><br/>
+            Band radius: ≤ ${radiusMiles.toFixed(2)} mi<br/>
+            Records in this band (with filters): <strong>${count}</strong>
+          </div>`;
+
+        circle.bindTooltip(tooltipHtml, {
+          sticky: true,
+          direction: "top"
+        });
+
+        ringsLayer.addLayer(circle);
+      }
+    }
+
+    function updateRecordsStatus(count) {
+      statusEls.records.textContent = `Records shown: ${count}`;
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
     }
   </script>
 </body>
