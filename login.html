@@ -3,459 +3,186 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Homebased Business Radius Explorer</title>
-
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <title>Login | Accel Mail Viewer</title>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; display: flex; flex-direction: column; }
-    
-    header {
-      padding: 12px 16px;
-      background: linear-gradient(90deg, #2f5597, #4b72c1);
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      height: 100vh;
+      display: flex; justify-content: center; align-items: center;
       color: #fff;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
     }
-    header h1 { margin: 0; font-size: 20px; font-weight: 600; }
-    header p { margin: 4px 0 0; font-size: 13px; opacity: .9; }
+    .login-container {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 2.5rem 2rem;
+      border-radius: 12px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+      width: 100%; max-width: 420px;
+      color: #1f2937;
+    }
+    .hero {
+      text-align: center; margin-bottom: 2rem;
+    }
+    .hero h1 {
+      font-size: 1.8rem; font-weight: 700; color: #1e40af; margin-bottom: .5rem;
+    }
+    .hero p {
+      font-size: .95rem; color: #6b7280;
+    }
+    .form-section {
+      margin-bottom: 1.5rem;
+    }
+    .form-section h2 {
+      font-size: 1.25rem; font-weight: 600; margin-bottom: .5rem; color: #111827;
+    }
+    .form-section p {
+      font-size: .875rem; color: #6b7280; margin-bottom: 1rem;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block; margin-bottom: .4rem; font-weight: 500; color: #374151;
+    }
+    select, input[type="password"] {
+      width: 100%; padding: .75rem 1rem; border: 1px solid #d1d5db;
+      border-radius: 6px; font-size: 1rem; background: #f9fafb;
+      transition: border .2s;
+    }
+    select:focus, input:focus {
+      outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.2);
+    }
+    .login-btn {
+      width: 100%; padding: .85rem; background: #3b82f6; color: white;
+      border: none; border-radius: 6px; font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: background .2s;
+    }
+    .login-btn:hover { background: #2563eb; }
+    .login-btn:disabled {
+      background: #9ca3af; cursor: not-allowed;
+    }
+    .error {
+      color: #dc2626; font-size: .875rem; margin-top: .5rem; text-align: center;
+    }
+    .loading {
+      display: none; text-align: center; margin-top: 1rem; color: #3b82f6;
+    }
+    .spinner {
+      border: 3px solid #f3f4f6; border-top: 3px solid #3b82f6;
+      border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite;
+      display: inline-block; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .header-controls {
-      display: flex; gap: .75rem;
-    }
-    .logout-btn, .admin-toggle {
-      padding: .5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; color: white;
-    }
-    .logout-btn { background: #e74c3c; }
-    .logout-btn:hover { background: #c0392b; }
-    .admin-toggle { background: #3b82f6; }
-    .admin-toggle:hover { background: #2563eb; }
-
-    main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-
-    #controls {
-      display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 16px;
-      background: #fff; box-shadow: 0 1px 3px rgba(15,23,42,.12); z-index: 500;
-    }
-    .control-group {
-      display: flex; flex-direction: column; min-width: 150px; max-width: 210px; font-size: 12px;
-    }
-    .control-group label { margin-bottom: 2px; font-weight: 600; color: #374151; }
-    .control-group select, .control-group input {
-      padding: 4px 6px; font-size: 12px; border-radius: 4px; border: 1px solid #d1d5db; background: #f9fafb;
-    }
-
-    #map { flex: 1; min-height: 0; height: 100%; }
-
-    #status-bar {
-      padding: 6px 16px; font-size: 11px; background: #eef2ff; border-top: 1px solid #c7d2fe;
-      color: #1f2937; display: flex; justify-content: space-between; gap: 8px;
-    }
-
-    .admin-panel {
-      position: fixed; top: 0; right: -400px; width: 380px; height: 100vh; background: white;
-      box-shadow: -2px 0 10px rgba(0,0,0,.1); padding: 1.5rem; overflow-y: auto; z-index: 2000;
-      transition: right .3s;
-    }
-    .admin-panel.visible { right: 0; }
-    .admin-section { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb; }
-    .form-group { margin-bottom: 1rem; }
-    .form-input { width: 100%; padding: .5rem; border: 1px solid #d1d5db; border-radius: 4px; }
-    .btn { background: #3b82f6; color: white; border: none; padding: .5rem 1rem; border-radius: 4px; cursor: pointer; }
-    .btn:hover { background: #2563eb; }
-    .btn-secondary { background: #6b7280; } .btn-secondary:hover { background: #4b5563; }
-
-    .popup-exclude-btn {
-      background: #dc2626; color: white; border: none; padding: 4px 8px; font-size: 11px;
-      border-radius: 3px; cursor: pointer; margin-top: 6px; width: 100%;
-    }
-    .popup-exclude-btn:hover { background: #b91c1c; }
-
-    @media (max-width: 768px) {
-      .control-group { min-width: 45%; }
-      header h1 { font-size: 16px; }
-      header p { font-size: 12px; }
+    @media (max-width: 480px) {
+      .login-container { padding: 1.5rem; margin: 1rem; }
+      .hero h1 { font-size: 1.5rem; }
     }
   </style>
 </head>
 <body>
 
-  <header>
-    <div>
-      <h1>Homebased Business Radius Explorer</h1>
-      <p>Click a marker to set center, adjust rings, hover rings for counts.</p>
+  <div class="login-container">
+    <div class="hero">
+      <h1 id="heroTitle">Accel Mail Viewer</h1>
+      <p id="heroSubtitle">Secure access to business intelligence tools</p>
     </div>
-    <div class="header-controls">
-      <button id="adminToggle" class="admin-toggle">Admin Panel</button>
-      <button id="logoutBtn" class="logout-btn">Logout</button>
+
+    <div class="form-section">
+      <h2 id="formTitle">Login Required</h2>
+      <p id="formSubtitle">Select your role and enter your password to continue.</p>
     </div>
-  </header>
 
-  <main>
-    <section id="controls">
-      <div class="control-group"><label for="ringCount">Number of Rings (1–5)</label><input type="number" id="ringCount" min="1" max="5" value="3" /></div>
-      <div class="control-group"><label for="ringStep">Ring Step (miles)</label><input type="number" id="ringStep" min="0.1" step="0.1" value="1" /></div>
-      <div class="control-group"><label for="radiusFilter">Radius Filter</label><select id="radiusFilter"><option value="all">All Rings</option></select></div>
-      <div class="control-group"><label for="lobFilter">Line of Business</label><select id="lobFilter"><option value="all">All</option></select></div>
-      <div class="control-group"><label for="yearFilter">Year Founded</label><select id="yearFilter"><option value="all">All</option></select></div>
-      <div class="control-group"><label for="cityFilter">City</label><select id="cityFilter"><option value="all">All</option></select></div>
-      <div class="control-group"><label for="naicsFilter">NAICS</label><select id="naicsFilter"><option value="all">All</option></select></div>
-    </section>
-
-    <div id="map"></div>
-
-    <div id="adminPanel" class="admin-panel">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-        <h3 style="margin:0;">Admin Controls</h3>
-        <button id="closeAdminPanel" class="btn btn-secondary">Close</button>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="role">Role</label>
+        <select id="role" required>
+          <option value="">Select role</option>
+          <option value="admin">Admin</option>
+          <option value="user">User</option>
+        </select>
       </div>
 
-      <div class="admin-section">
-        <h4>Dataset Visibility</h4>
-        <button id="toggleAddressesBtn" class="btn">Hide All Addresses</button>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter password" required />
       </div>
 
-      <div class="admin-section">
-        <h4>Ring Settings</h4>
-        <button id="saveRingConfigBtn" class="btn">Save Ring Config</button>
-      </div>
+      <button type="submit" class="login-btn" id="loginBtn">Login</button>
+    </form>
 
-      <div class="admin-section">
-        <h4>Manage Target Addresses</h4>
-        <div class="form-group">
-          <input type="text" id="newAddressName" placeholder="Name" class="form-input">
-          <input type="text" id="newAddressLat" placeholder="Latitude" class="form-input">
-          <input type="text" id="newAddressLng" placeholder="Longitude" class="form-input">
-          <button id="addAddressBtn" class="btn">Add</button>
-        </div>
-        <div id="savedAddressesList"></div>
-      </div>
-
-      <div class="admin-section">
-        <h4>Login Screen Text</h4>
-        <div class="form-group"><label for="loginHeroTitle">Hero Title</label><input type="text" id="loginHeroTitle" class="form-input"></div>
-        <div class="form-group"><label for="loginHeroSubtitle">Hero Subtitle</label><input type="text" id="loginHeroSubtitle" class="form-input"></div>
-        <div class="form-group"><label for="loginFormTitle">Form Title</label><input type="text" id="loginFormTitle" class="form-input"></div>
-        <div class="form-group"><label for="loginFormSubtitle">Form Subtitle</label><input type="text" id="loginFormSubtitle" class="form-input"></div>
-        <button id="saveLoginTextBtn" class="btn">Save</button>
-      </div>
+    <div id="errorMsg" class="error"></div>
+    <div class="loading" id="loading">
+      <div class="spinner"></div> Authenticating...
     </div>
-  </main>
-
-  <div id="status-bar">
-    <span id="recordsStatus">Records shown: 0</span>
-    <span id="centerStatus">Center: Click a marker</span>
   </div>
-
-  <!-- Scripts -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <script>
     // === CONFIG ===
-    const CSV_URL = "homebased_businesses_upto5yrs.csv";
     const GAS_URL = "https://script.google.com/macros/s/AKfycbziA154kkejooSz4Imv94x7l5HLnodwQaAiX7m4trDDbHY0qUnqexq7ofzfIYq0BGpTqA/exec";
-
-    let map, markersLayer = L.layerGroup(), ringsLayer = L.layerGroup();
-    let allRecords = [], activeCenter = null;
-    let ringConfig = {count: 3, stepMiles: 1};
-    let savedAddresses = [], excludedIds = new Set(), showDataset = true;
 
     // === DOM READY ===
     document.addEventListener("DOMContentLoaded", () => {
-      if (sessionStorage.getItem('isAuthenticated') !== 'true') {
-        window.location.href = 'login.html';
+      loadLoginText();
+      document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    });
+
+    // === LOAD LOGIN TEXT FROM GAS ===
+    function loadLoginText() {
+      fetch(`${GAS_URL}?action=getLoginText`, { mode: 'cors' })
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById('heroTitle').textContent = data.heroTitle || "Accel Mail Viewer";
+          document.getElementById('heroSubtitle').textContent = data.heroSubtitle || "Secure access to business intelligence tools";
+          document.getElementById('formTitle').textContent = data.formTitle || "Login Required";
+          document.getElementById('formSubtitle').textContent = data.formSubtitle || "Select your role and enter your password to continue.";
+        })
+        .catch(err => {
+          console.warn("Could not load login text:", err);
+          // Fallback defaults
+          document.getElementById('heroTitle').textContent = "Accel Mail Viewer";
+        });
+    }
+
+    // === HANDLE LOGIN ===
+    function handleLogin(e) {
+      e.preventDefault();
+      const role = document.getElementById('role').value;
+      const password = document.getElementById('password').value;
+      const errorMsg = document.getElementById('errorMsg');
+      const loading = document.getElementById('loading');
+      const loginBtn = document.getElementById('loginBtn');
+
+      if (!role || !password) {
+        errorMsg.textContent = "Please select a Rolle and enter password.";
         return;
       }
 
-      initMap();
-      bindEvents();
-      loadConfigFromGAS();
-      loadCsvData();
-    });
+      errorMsg.textContent = "";
+      loading.style.display = "block";
+      loginBtn.disabled = true;
 
-    // === MAP INIT ===
-    function initMap() {
-      map = L.map('map').setView([36.85, -76.35], 11);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
-      markersLayer.addTo(map);
-      ringsLayer.addTo(map);
-    }
-
-    // === EVENT BINDING ===
-    function bindEvents() {
-      document.getElementById('adminToggle').addEventListener('click', () => {
-        document.getElementById('adminPanel').classList.toggle('visible');
-      });
-      document.getElementById('closeAdminPanel').addEventListener('click', () => {
-        document.getElementById('adminPanel').classList.remove('visible');
-      });
-      document.getElementById('logoutBtn').addEventListener('click', () => {
-        sessionStorage.removeItem('isAuthenticated');
-        sessionStorage.removeItem('role');
-        window.location.href = 'login.html';
-      });
-      document.getElementById('saveRingConfigBtn').addEventListener('click', saveRingConfig);
-      document.getElementById('toggleAddressesBtn').addEventListener('click', toggleDataset);
-      document.getElementById('addAddressBtn').addEventListener('click', addAddress);
-      document.getElementById('saveLoginTextBtn').addEventListener('click', saveLoginText);
-
-      // Filters
-      ['lobFilter','yearFilter','cityFilter','naicsFilter','radiusFilter'].forEach(id => {
-        document.getElementById(id).addEventListener('change', recomputeAndRedraw);
-      });
-    }
-
-    // === GAS COMMUNICATION ===
-    function loadConfigFromGAS() {
-      fetch(`${GAS_URL}?action=getConfig`, { mode: 'cors' })
+      fetch(`${GAS_URL}?action=login&role=${role}&password=${encodeURIComponent(password)}`, { mode: 'cors' })
         .then(r => r.json())
         .then(data => {
-          savedAddresses = data.savedAddresses || [];
-          excludedIds = new Set(data.excludedIds || []);
-          showDataset = data.showDataset !== false;
-          ringConfig = data.ringConfig || {count:3, stepMiles:1};
-          document.getElementById('ringCount').value = ringConfig.count;
-          document.getElementById('ringStep').value = ringConfig.stepMiles;
-          updateRadiusFilterOptions();
-          populateSavedAddresses();
+          if (data.success) {
+            sessionStorage.setItem('isAuthenticated', 'true');
+            sessionStorage.setItem('role', role);
+            window.location.href = 'index.html';
+          } else {
+            errorMsg.textContent = "Invalid password. Try again.";
+          }
         })
-        .catch(console.error);
-    }
-
-    function saveConfigToGAS() {
-      const payload = {
-        action: 'saveConfig',
-        config: { savedAddresses, excludedIds: Array.from(excludedIds), showDataset, ringConfig }
-      };
-      fetch(GAS_URL, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    }
-
-    // === ADMIN FUNCTIONS ===
-    function saveRingConfig() {
-      ringConfig.count = +document.getElementById('ringCount').value;
-      ringConfig.stepMiles = +document.getElementById('ringStep').value;
-      updateRadiusFilterOptions();
-      saveConfigToGAS();
-    }
-
-    function toggleDataset() {
-      showDataset = !showDataset;
-      document.getElementById('toggleAddressesBtn').textContent = showDataset ? 'Hide All Addresses' : 'Show All Addresses';
-      saveConfigToGAS();
-      recomputeAndRedraw();
-    }
-
-    function addAddress() {
-      const name = document.getElementById('newAddressName').value.trim();
-      const lat = parseFloat(document.getElementById('newAddressLat').value);
-      const lng = parseFloat(document.getElementById('newAddressLng').value);
-      if (name && isFinite(lat) && isFinite(lng)) {
-        savedAddresses.push({ name, lat, lng });
-        saveConfigToGAS();
-        populateSavedAddresses();
-        document.getElementById('newAddressName').value = '';
-        document.getElementById('newAddressLat').value = '';
-        document.getElementById('newAddressLng').value = '';
-      }
-    }
-
-    function populateSavedAddresses() {
-      const list = document.getElementById('savedAddressesList');
-      list.innerHTML = '<h5>Saved Addresses</h5><ul>' + savedAddresses.map((a, i) => `
-        <li style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
-          <span>${a.name} (${a.lat}, ${a.lng})</span>
-          <button onclick="removeAddress(${i})" style="color:red; font-size:10px;">Remove</button>
-        </li>
-      `).join('') + '</ul>';
-    }
-
-    window.removeAddress = function(i) {
-      savedAddresses.splice(i, 1);
-      saveConfigToGAS();
-      populateSavedAddresses();
-    };
-
-    function saveLoginText() {
-      const text = {
-        heroTitle: document.getElementById('loginHeroTitle').value,
-        heroSubtitle: document.getElementById('loginHeroSubtitle').value,
-        formTitle: document.getElementById('loginFormTitle').value,
-        formSubtitle: document.getElementById('loginFormSubtitle').value
-      };
-      fetch(GAS_URL, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'saveLoginText', text })
-      }).then(() => alert('Login text saved!'));
-    }
-
-    // === CSV & MAP LOGIC ===
-    function loadCsvData() {
-      Papa.parse(CSV_URL, {
-        header: true, download: true, dynamicTyping: true, skipEmptyLines: true,
-        complete: results => {
-          allRecords = results.data
-            .map(r => ({
-              id: r.Record_ID,
-              lat: parseFloat(r.Latitude),
-              lng: parseFloat(r.Longtitude),
-              lineOfBusiness: r.Line_of_Business || '',
-              yearFounded: r.Year_of_Founding || '',
-              city: r.Physical_City || '',
-              naicsDesc: r.Primary_NAICS_Description ||子上'',
-              label: r.Physical_Address || r.Physical_City || 'Location'
-            }))
-            .filter(r => isFinite(r.lat) && isFinite(r.lng));
-          populateFilters();
-          drawMarkersAndRings();
-        }
-      });
-    }
-
-    function populateFilters() {
-      const add = (id, vals) => {
-        const sel = document.getElementById(id);
-        sel.innerHTML = '<option value="all">All</option>';
-        vals.forEach(v => {
-          const o = document.createElement('option');
-          o.value = v; o.textContent = v; sel.appendChild(o);
+        .catch(err => {
+          console.error("Login failed:", err);
+          errorMsg.textContent = "Network error. Please try again.";
+        })
+        .finally(() => {
+          loading.style.display = "none";
+          loginBtn.disabled = false;
         });
-      };
-      add('lobFilter', [...new Set(allRecords.map(r => r.lineOfBusiness).filter(Boolean))].sort());
-      add('yearFilter', [...new Set(allRecords.map(r => r.yearFounded).filter(Boolean))].sort());
-      add('cityFilter', [...new Set(allRecords.map(r => r.city).filter(Boolean))].sort());
-      add('naicsFilter', [...new Set(allRecords.map(r => r.naicsDesc).filter(Boolean))].sort());
-    }
-
-    function updateRadiusFilterOptions() {
-      const sel = document.getElementById('radiusFilter');
-      sel.innerHTML = '<option value="all">All Rings</option>';
-      for (let i = 1; i <= ringConfig.count; i++) {
-        const o = document.createElement('option');
-        o.value = i;
-        o.textContent = `Within ${i * ringConfig.stepMiles} miles`;
-        sel.appendChild(o);
-      }
-    }
-
-    function computeRingAssignments() {
-      if (!activeCenter) return;
-      const c = L.latLng(activeCenter.lat, activeCenter.lng);
-      allRecords.forEach(r => {
-        if (excludedIds.has(r.id)) { r.ringIndex = 0; return; }
-        const d = map.distance(c, L.latLng(r.lat, r.lng)) / 1609.34;
-        r.ringIndex = 0;
-        for (let i = 1; i <= ringConfig.count; i++) {
-          if (d <= i * ringConfig.stepMiles) { r.ringIndex = i; break; }
-        }
-      });
-    }
-
-    function getFilteredRecords(ringFilter = true) {
-      const f = {
-        lob: document.getElementById('lobFilter').value,
-        year: document.getElementById('yearFilter').value,
-        city: document.getElementById('cityFilter').value,
-        naics: document.getElementById('naicsFilter').value,
-        radius: ringFilter ? document.getElementById('radiusFilter').value : 'all'
-      };
-      return allRecords.filter(r => {
-        if (excludedIds.has(r.id)) return false;
-        if (f.lob !== 'all' && r.lineOfBusiness !== f.lob) return false;
-        if (f.year !== 'all' && String(r.yearFounded) !== f.year) return false;
-        if (f.city !== 'all' && r.city !== f.city) return false;
-        if (f.naics !== 'all' && r.naicsDesc !== f.naics) return false;
-        if (ringFilter && f.radius !== 'all' && r.ringIndex !== parseInt(f.radius)) return false;
-        return true;
-      });
-    }
-
-    function drawMarkersAndRings() {
-      markersLayer.clearLayers(); ringsLayer.clearLayers();
-      const display = showDataset ? getFilteredRecords(false) : [];
-
-      display.forEach(rec => {
-        const isCenter = activeCenter && rec.lat === activeCenter.lat && rec.lng === activeCenter.lng;
-        const m = L.circleMarker([rec.lat, rec.lng], {
-          radius: isCenter ? 6 : 4, weight: 1,
-          color: isCenter ? "#b91c1c" : "#2563eb",
-          fillColor: isCenter ? "#fecaca" : "#60a5fa", fillOpacity: 0.9
-        });
-        const popup = `
-          <div style="font-size:12px;">
-            <strong>${escape(rec.label)}</strong><br/>
-            <em>${escape(rec.city)}</em><br/>
-            ${escape(rec.lineOfBusiness)}<br/>
-            Year: ${escape(rec.yearFounded || "N/A")}<br/>
-            NAICS: ${escape(rec.naicsDesc)}
-            <button class="popup-exclude-btn" onclick="excludePoint('${rec.id}')">Exclude Point</button>
-          </div>`;
-        m.bindPopup(popup);
-        m.on('click', () => {
-          activeCenter = { lat: rec.lat, lng: rec.lng, name: rec.label };
-          document.getElementById('centerStatus').textContent = `Center: ${rec.label}`;
-          recomputeAndRedraw(true);
-        });
-        markersLayer.addLayer(m);
-      });
-
-      savedAddresses.forEach(a => {
-        const m = L.circleMarker([a.lat, a.lng], { radius: 6, weight: 1, color: "#b91c1c", fillColor: "#fecaca", fillOpacity: 0.9 });
-        m.bindPopup(`<strong>${escape(a.name)}</strong>`);
-        m.on('click', () => {
-          activeCenter = { lat: a.lat, lng: a.lng, name: a.name };
-          document.getElementById('centerStatus').textContent = `Center: ${a.name}`;
-          recomputeAndRedraw(true);
-        });
-        markersLayer.addLayer(m);
-      });
-
-      if (activeCenter) {
-        const c = L.latLng(activeCenter.lat, activeCenter.lng);
-        const counts = new Array(ringConfig.count + 1).fill(0);
-        getFilteredRecords(false).forEach(r => { if (r.ringIndex >= 1) counts[r.ringIndex]++; });
-        for (let i = 1; i <= ringConfig.count; i++) {
-          L.circle(c, {
-            radius: i * ringConfig.stepMiles * 1609.34,
-            color: i === 1 ? '#1e40af' : '#3b82f6',
-            weight: i === 1 ? 2 : 1,
-            opacity: 0.7, fillOpacity: 0.1, fillColor: '#3b82f6'
-          }).bindTooltip(
-            `<div style="text-align:center"><strong>${i * ringConfig.stepMiles} mile${i > 1 ? 's' : ''}</strong><br>${counts[i]} business${counts[i] !== 1 ? 'es' : ''}</div>`,
-            { permanent: false, direction: 'top' }
-          ).addTo(ringsLayer);
-        }
-      }
-
-      document.getElementById('recordsStatus').textContent = `Records shown: ${getFilteredRecords().length}`;
-    }
-
-    function recomputeAndRedraw(fit = false) {
-      computeRingAssignments();
-      drawMarkersAndRings();
-      if (fit && activeCenter) map.setView([activeCenter.lat, activeCenter.lng], Math.max(map.getZoom(), 12));
-    }
-
-    window.excludePoint = function(id) {
-      excludedIds.add(id);
-      saveConfigToGAS();
-      recomputeAndRedraw();
-    };
-
-    function escape(s) {
-      return s ? String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])) : '';
     }
   </script>
 </body>
