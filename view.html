@@ -17,40 +17,60 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-  <script>
-    const CSV_URL = "homebased_businesses_upto5yrs.csv";
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbziA154kkejooSz4Imv94x7l5HLnodwQaAiX7m4trDDbHY0qUnqexq7ofzfIYq0BGpTqA/exec";
+ <script>
+  // === CONFIG ===
+  const CSV_URL = "homebased_businesses_upto5yrs.csv";
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbziA154kkejooSz4Imv94x7l5HLnodwQaAiX7m4trDDbHY0qUnqexq7ofzfIYq0BGpTqA/exec";
 
-    // ... all your variables ...
+  let map, markersLayer, ringsLayer, allRecords = [], activeCenter = null;
+  let ringConfig = {count:3, stepMiles:1}, savedAddresses = [], excludedIds = new Set(), showDataset = true;
 
-    function loadConfigFromGAS() {
-      statusEl.textContent = 'Loading config...';
-      fetch(`${GAS_URL}?action=getConfig`, { mode: 'cors' })
-        .then(r => r.json())
-        .then(data => {
-          savedAddresses = data.savedAddresses || [];
-          excludedIds = new Set(data.excludedIds || []);
-          showDataset = data.showDataset !== false;
-          ringConfig = data.ringConfig || {count:3, stepMiles:1};
-          updateRadiusFilterOptions();
-        })
-        .catch(err => {
-          console.error(err);
-          statusEl.textContent = 'Config load failed';
-        });
+  // === WAIT FOR DOM ===
+  document.addEventListener("DOMContentLoaded", () => {
+    if (sessionStorage.getItem('isAuthenticated') !== 'true') {
+      window.location.href = 'login.html';
+      return;
     }
 
-    function saveConfigToGAS() {
-      const payload = {action:'saveConfig', config:{savedAddresses, excludedIds:Array.from(excludedIds), showDataset, ringConfig}};
-      fetch(GAS_URL, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    }
+    // Now safe to access DOM
+    initMap();
+    bindEvents();
+    loadConfigFromGAS();
+    loadCsvData();
+  });
 
-    // ... rest of your script exactly as you had it ...
-  </script>
+  function initMap() {
+    map = L.map('map').setView([36.85, -76.35], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    markersLayer = L.layerGroup().addTo(map);
+    ringsLayer = L.layerGroup().addTo(map);
+  }
+
+  function bindEvents() {
+    // These will now work
+    document.getElementById('adminToggle').addEventListener('click', () => {
+      document.getElementById('adminPanel').classList.toggle('visible');
+    });
+    document.getElementById('closeAdminPanel').addEventListener('click', () => {
+      document.getElementById('adminPanel').classList.remove('visible');
+    });
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      sessionStorage.removeItem('isAuthenticated');
+      sessionStorage.removeItem('role');
+      window.location.href = 'login.html';
+    });
+
+    // Add all other event listeners here
+    document.getElementById('saveRingConfigBtn').addEventListener('click', saveRingConfig);
+    document.getElementById('toggleAddressesBtn').addEventListener('click', toggleDataset);
+    // ... etc
+  }
+
+  // === REST OF YOUR FUNCTIONS BELOW ===
+  function loadConfigFromGAS() { /* ... */ }
+  function saveConfigToGAS() { /* ... */ }
+  function loadCsvData() { /* ... */ }
+  // ... etc
+</script>
 </body>
 </html>
